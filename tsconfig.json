@@ -1,0 +1,18 @@
+{
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "CommonJS",
+        "lib": ["ES2019", "ES2020", "ES2021", "ES2022", "DOM"],
+        "allowJs": true,
+        "allowUnreachableCode": true,
+        "declaration": true,
+        "skipLibCheck": false,
+        "strict": true,
+        "esModuleInterop": true,
+        "pretty": true,
+        "resolveJsonModule": true
+    },
+    "exclude": [
+        "node_modules"
+    ]
+}

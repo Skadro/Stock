@@ -1,0 +1,32 @@
+{
+  "name": "stock",
+  "version": "3.0.0",
+  "description": "",
+  "main": "index.ts",
+  "scripts": {
+    "start": "ts-node index.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Skadro/Stock.git"
+  },
+  "author": "Skadro",
+  "license": "GPL-3.0",
+  "homepage": "https://github.com/Skadro/Stock",
+  "dependencies": {
+    "discord.js": "latest",
+    "dotenv": "latest",
+    "express": "latest",
+    "fluent-ffmpeg": "latest",
+    "fs": "latest"
+  },
+  "devDependencies": {
+    "@types/express": "latest",
+    "@types/fluent-ffmpeg": "latest",
+    "@types/node": "latest",
+    "discord.js": "latest",
+    "fs": "latest",
+    "ts-node": "latest",
+    "typescript": "latest"
+  }
+}
