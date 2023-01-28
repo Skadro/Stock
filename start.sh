@@ -1,0 +1,1 @@
+sudo ts-node index.js

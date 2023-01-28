@@ -14,6 +14,7 @@
   "license": "GPL-3.0",
   "homepage": "https://github.com/Skadro/Stock",
   "dependencies": {
+    "cors": "latest",
     "discord.js": "latest",
     "dotenv": "latest",
     "express": "latest",
@@ -21,11 +22,13 @@
     "fs": "latest"
   },
   "devDependencies": {
+    "@types/cors": "latest",
     "@types/express": "latest",
     "@types/fluent-ffmpeg": "latest",
     "@types/node": "latest",
     "discord.js": "latest",
     "fs": "latest",
+    "nodemon": "latest",
     "ts-node": "latest",
     "typescript": "latest"
   }

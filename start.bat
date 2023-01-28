@@ -1,3 +1,3 @@
 @echo off
-ts-node index.ts
+nodemon index.ts
 pause

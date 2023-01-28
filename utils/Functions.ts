@@ -4,6 +4,7 @@ import path from 'path';
 import { Client, EmbedBuilder, GuildBasedChannel, Guild, Snowflake } from 'discord.js';
 import ffmpeg from 'fluent-ffmpeg';
 import { Express } from 'express';
+import cors from 'cors';
 
 import { EmbedTitle, FilesEmbeds, FormattedDate } from './Structures';
 import { config } from './Storage';
@@ -89,6 +90,8 @@ export function generateThumbnail(fileName: string, savePath: string): void {
  */
 export function serverSetup(client: Client, app: Express): void {
     try {
+        app.use(cors());
+
         app.all('/', (_req, res) => {
             res.status(404).end();
         });
