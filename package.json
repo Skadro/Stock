@@ -31,5 +31,11 @@
     "nodemon": "latest",
     "ts-node": "latest",
     "typescript": "latest"
+  },
+  "nodemonConfig": {
+    "ignore": [
+      "config.json"
+    ],
+    "delay": 2500
   }
 }
