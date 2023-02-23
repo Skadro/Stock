@@ -6,6 +6,7 @@ export declare interface ExpressConfig {
     domain: string;
     rootDir: string;
     port: number;
+    serverTimeout: number;
 }
 
 export declare type EmbedTitle = 'download' | 'filename' | 'fullfilename';
@@ -40,7 +41,7 @@ export class Config {
     /**
      * Configuration object
      */
-    config: ConfigObject = { express: { domain: 'localhost', rootDir: 'stock', port: 3000 }, serverID: '', categories: [] };
+    config: ConfigObject = { express: { domain: 'localhost', rootDir: 'stock', port: 3000, serverTimeout: 300000 }, serverID: '', categories: [] };
 
     /**
      * Configiration file path

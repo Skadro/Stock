@@ -1,13 +1,14 @@
 import fs from 'fs';
 import fsPromises from 'fs/promises';
 import path from 'path';
-import { Client, EmbedBuilder, GuildBasedChannel, Guild, Snowflake } from 'discord.js';
+import { Client, EmbedBuilder, GuildBasedChannel, Guild, Snowflake, TextBasedChannel, TextChannel } from 'discord.js';
 import ffmpeg from 'fluent-ffmpeg';
 import { Express } from 'express';
 import cors from 'cors';
 
 import { EmbedTitle, FilesEmbeds, FormattedDate } from './Structures';
 import { config } from './Storage';
+import mime from 'mime';
 
 /**
  * @function
@@ -90,7 +91,9 @@ export function generateThumbnail(fileName: string, savePath: string): void {
  */
 export function serverSetup(client: Client, app: Express): void {
     try {
-        app.use(cors());
+        app.use(cors({
+            origin: '*'
+        }));
 
         app.all('/', (_req, res) => {
             res.status(404).end();
@@ -193,15 +196,19 @@ export function serverSetup(client: Client, app: Express): void {
                 if (!fs.existsSync(fullPath)) { res.status(404).end(); return; }
                 if (!/(.jpeg|.jpg|.gif|.bmp|.png|.webp)$/ig.test(req.params.filename)) { res.status(404).end(); return; }
 
-                const type = path.parse(fullPath).ext;
+                const type = mime.getType(path.parse(fullPath).ext);
                 if (type) {
-                    res.type(type);
-                    res.contentType(type);
-                }
+                    fs.readFile(fullPath, (err, data) => {
+                        if (err) {
+                            console.log(err);
+                            res.status(500).end();
+                            return;
+                        }
 
-                res.sendFile(fullPath, (err) => {
-                    if (err) res.status(500).end();
-                });
+                        res.writeHead(200, { 'Content-Type': type });
+                        res.end(data);
+                    })
+                }
             } catch (err) {
                 console.log(err);
                 res.status(500).end();
@@ -229,18 +236,25 @@ export function serverSetup(client: Client, app: Express): void {
 
                 if (req.query.dl && req.query.dl == '1') {
                     res.download(fullPath, (err) => {
-                        if (err) res.status(500).end();
+                        if (err) {
+                            console.log(err);
+                            res.status(500).end();
+                        }
                     });
                 } else {
-                    const type = path.parse(fullPath).ext;
+                    const type = mime.getType(path.parse(fullPath).ext);
                     if (type) {
-                        res.type(type);
-                        res.contentType(type);
-                    }
+                        fs.readFile(fullPath, (err, data) => {
+                            if (err) {
+                                console.log(err);
+                                res.status(500).end();
+                                return;
+                            }
 
-                    res.sendFile(fullPath, (err) => {
-                        if (err) res.status(500).end();
-                    });
+                            res.writeHead(200, { 'Content-Type': type });
+                            res.end(data);
+                        })
+                    }
                 }
             } catch (err) {
                 console.log(err);
@@ -252,9 +266,11 @@ export function serverSetup(client: Client, app: Express): void {
             res.status(404).end();
         });
 
-        app.listen(config.config.express.port, () => {
+        const server = app.listen(config.config.express.port, () => {
             console.log(`Listening on port ${config.config.express.port}`);
         });
+
+        server.timeout = config.config.express.serverTimeout;
     } catch (err) {
         console.log(err);
     }
@@ -357,7 +373,7 @@ export async function submitFiles(date: FormattedDate, client: Client): Promise<
 
                         while (filesEmbeds.embeds.length > 0) {
                             if (filesEmbeds.embeds.length <= 10) {
-                                await channel.send({ embeds: filesEmbeds.embeds })
+                                await (channel as TextChannel).send({ embeds: filesEmbeds.embeds })
                                     .then(async () => {
                                         filesEmbeds.files.forEach(async (file) => {
                                             await fsPromises.appendFile(`${fullPath}/stocked`, `${file}\n`, 'utf8');
@@ -509,4 +525,14 @@ export function changePort(port: number): void {
     config.rewrite();
 
     console.log('Port changed successfully');
+}
+
+/**
+ * @function
+ * @param filename The filename
+ * @returns {boolean}
+ */
+export function checkIfVideo(filename: string): boolean {
+    if (/(.webm|.mkv|.flv|.ogg|.ogv|.avi|.mov|.wmv|.mp4|.m4p|.m4v)$/ig.test(filename)) return true;
+    return false;
 }

@@ -19,12 +19,14 @@
     "dotenv": "latest",
     "express": "latest",
     "fluent-ffmpeg": "latest",
-    "fs": "latest"
+    "fs": "latest",
+    "mime": "latest"
   },
   "devDependencies": {
     "@types/cors": "latest",
     "@types/express": "latest",
     "@types/fluent-ffmpeg": "latest",
+    "@types/mime": "latest",
     "@types/node": "latest",
     "discord.js": "latest",
     "fs": "latest",

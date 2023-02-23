@@ -1,8 +1,9 @@
 {
 	"express": {
-		"port": 0,
+		"domain": "example.com",
 		"rootDir": "stock",
-		"domain": "example.com"
+		"port": 80,
+		"serverTimeout": 300000
 	},
 	"serverID": "",
 	"categories": []
