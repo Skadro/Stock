@@ -1,18 +1,73 @@
 {
     "compilerOptions": {
-        "target": "ES2022",
+        // Modules
+        "target": "ESNext",
         "module": "CommonJS",
-        "lib": ["ES2019", "ES2020", "ES2021", "ES2022", "DOM"],
-        "allowJs": true,
-        "allowUnreachableCode": true,
-        "declaration": true,
-        "skipLibCheck": false,
+        "lib": [
+            "ES2019",
+            "ES2020",
+            "ES2021",
+            "ES2022",
+            "DOM"
+        ],
+        "allowArbitraryExtensions": true,
+        "allowUmdGlobalAccess": true,
+        "resolveJsonModule": true,
+
+        // Type checking
+        "allowUnreachableCode": false,
+        "allowUnusedLabels": false,
+        "exactOptionalPropertyTypes": true,
+        "noFallthroughCasesInSwitch": true,
+        "noUncheckedIndexedAccess": true,
+        "useUnknownInCatchVariables": true,
+        "alwaysStrict": true,
+        "noImplicitAny": true,
+        "noImplicitOverride": true,
+        "noImplicitReturns": true,
+        "noImplicitThis": true,
+        "noImplicitUseStrict": false,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
         "strict": true,
+        "strictBindCallApply": true,
+        "strictFunctionTypes": true,
+        "strictNullChecks": true,
+        "strictPropertyInitialization": true,
+
+        // Emit
+        "declaration": true,
+        "declarationMap": true,
+        "preserveConstEnums": true,
+
+        // JavaScript support
+        "allowJs": false,
+        "checkJs": false,
+
+        // Editor support
+        "disableSizeLimit": true,
+
+        // Interlop constraints
         "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "preserveSymlinks": true,
+
+        // Output formatting
         "pretty": true,
-        "resolveJsonModule": true
+        
+        // Completeness
+        "skipDefaultLibCheck": true,
+        "skipLibCheck": true,
     },
+    "include": [
+        "src/index.ts",
+        "src/utils/**/*",
+        "src/routes/**/*"
+    ],
     "exclude": [
-        "node_modules"
+        "node_modules",
+        "signature",
+        "views",
+        "**/**/*.js"
     ]
 }

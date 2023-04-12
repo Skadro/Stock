@@ -1,3 +1,3 @@
 @echo off
-nodemon index.ts
+npm run start
 pause

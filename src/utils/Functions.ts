@@ -1,0 +1,637 @@
+// External libs
+import fs from 'fs';
+import path from 'path';
+import express, { Response } from 'express';
+import http from 'http';
+import https from 'https';
+import cors from 'cors';
+import compression from 'compression';
+import crypto from 'crypto';
+import readline from 'readline';
+const rl: readline.Interface = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+});
+
+// Routes
+import root from '../routes/root';
+import category from '../routes/category';
+import year from '../routes/year';
+import month from '../routes/month';
+import day from '../routes/day';
+import filename from '../routes/filename';
+
+// Internal libs
+import { EncryptedSignature, FormattedDate } from './Structures';
+import { server, config } from './Storage';
+
+var cmdPrompt: boolean = false;
+
+/**
+ * A command prompt within the application that can be used to perform a variety of tasks
+ * @function
+ * @returns {Promise<void>}
+ */
+export async function commandPrompt(): Promise<void> {
+    rl.question('Command: ', async (command) => {
+        try {
+            let args = command.slice(0).split(/ +/);
+            let cmd = args.shift();
+
+            if (cmd) {
+                cmd = cmd.toLowerCase();
+                switch (cmd) {
+                    case 'reload_config':
+                    case 'reload_cfg':
+                        config.reload();
+
+                        break;
+                    case 'stop':
+                    case 'shutdown':
+                        stopServer();
+
+                        process.exit(0);
+                    case 'restart_server':
+                    case 'restart':
+                        stopServer();
+                        server.app = express();
+                        serverSetup();
+
+                        break;
+                    case 'createtoday':
+                        await createDate(formatDate(new Date(Date.now()))).then((i) => {
+                            console.log(`Created today\'s folders for ${i} category(-ies)`);
+                            config.reload();
+                        }).catch((err) => {
+                            console.log(err);
+                        });
+
+                        break;
+                    case 'get_connections':
+                        if (server.server) {
+                            server.server.getConnections((err, count) => {
+                                if (err) {
+                                    console.log(err);
+                                    return;
+                                }
+
+                                console.log(`Current connections: ${count}`);
+                            });
+                        }
+
+                        break;
+                    case 'generate_key':
+                    case 'regenerate_key':
+                        generateKey();
+
+                        break;
+                    case 'add_category':
+                    case 'category':
+                        if (!args[0]) { console.log('You must provide the category name'); break; }
+                        if (/[\\/:*?"<>|]/ig.test(args[0])) { console.log('The category name must not contain the following characters:\n\\ / : * ? " < > |'); return; }
+
+                        addCategory(args[0]);
+
+                        break;
+                    case 'change_domain':
+                        if (!args[0]) { console.log('You must provide the domain name'); break; }
+
+                        changeDomain(args[0]);
+
+                        break;
+                    case 'change_port':
+                        if (!args[0]) { console.log('You must provide the port'); break; }
+                        if (!isInteger(args[0])) { console.log('The port must be a positive integer'); break; }
+
+                        changePort(parseInt(args[0]));
+
+                        break;
+                    case 'change_dir':
+                        if (!args[0]) { console.log('You must provide the directory name'); break; }
+
+                        changeDir(args[0]);
+
+                        break;
+                    case 'change_sockettimeout':
+                    case 'change_socket':
+                        if (!args[0]) { console.log('You must provide the socket timeout value (in milliseconds)'); break; }
+                        if (!isInteger(args[0])) { console.log('The socket timeout value must be a positive integer'); break; }
+
+                        changeSocketTimeout(parseInt(args[0]));
+
+                        break;
+                    case 'change_keepalivetimeout':
+                    case 'change_keepalive':
+                        if (!args[0]) { console.log('You must provide the keep-alive timeout value (in milliseconds)'); break; }
+                        if (!isInteger(args[0])) { console.log('The keep-alive timeout value must be a positive integer'); break; }
+
+                        changeKeepAliveTimeout(parseInt(args[0]));
+
+                        break;
+                    case 'change_requesttimeout':
+                    case 'change_request':
+                        if (!args[0]) { console.log('You must provide the request timeout value (in milliseconds)'); break; }
+                        if (!isInteger(args[0])) { console.log('The request timeout value must be a positive integer'); break; }
+
+                        changeRequestTimeout(parseInt(args[0]));
+
+                        break;
+                    case 'change_headerstimeout':
+                    case 'change_headers':
+                        if (!args[0]) { console.log('You must provide the headers timeout value (in milliseconds)'); break; }
+                        if (!isInteger(args[0])) { console.log('The headers timeout value must be a positive integer'); break; }
+
+                        changeHeadersTimeout(parseInt(args[0]));
+
+                        break;
+                    case 'change_sigexpiry':
+                    case 'change_expiry':
+                        if (!args[0]) { console.log('You must provide the expiry time (in seconds)'); break; }
+                        if (!isInteger(args[0])) { console.log('The expiry time must be a positive integer'); break; }
+
+                        changeSignatureExpiry(parseInt(args[0]));
+
+                        break;
+                    case 'change_filesperpage':
+                    case 'change_pages':
+                        if (!args[0]) { console.log('You must provide the number of files per page'); break; }
+                        if (!isInteger(args[0])) { console.log('The files per page value must be a positive integer'); break; }
+
+                        changeFilesPerPage(parseInt(args[0]));
+
+                        break;
+                    case 'change_maxfilesperday':
+                    case 'change_maxfiles':
+                        if (!args[0]) { console.log('You must provide the number of files per day'); break; }
+                        if (!isInteger(args[0])) { console.log('The files per day value must be a positive integer'); break; }
+
+                        changeMaxFilesPerDay(parseInt(args[0]));
+
+                        break;
+                    default:
+                        commandPrompt();
+                }
+            }
+
+            setTimeout(() => commandPrompt(), 1000);
+        } catch (err) {
+            console.log(err);
+        }
+    });
+}
+
+/**
+ * A date formatter that is used when creating stock directories
+ * @function
+ * @param date A `Date` instance
+ * @returns {FormattedDate} the formatted date
+ */
+export function formatDate(date: Date): FormattedDate {
+    const month = date.getUTCMonth() + 1;
+    const day = date.getUTCDate();
+
+    let finalDate: FormattedDate = { year: '', month: '', day: '' } as FormattedDate;
+
+    finalDate.year = date.getUTCFullYear().toString();
+
+    if (month.toString().length < 2) {
+        finalDate.month = "0" + month.toString();
+    } else {
+        finalDate.month = month.toString();
+    }
+
+    if (day.toString().length < 2) {
+        finalDate.day = "0" + day.toString();
+    } else {
+        finalDate.day = day.toString();
+    }
+
+    return finalDate;
+}
+
+/**
+ * Creates the directories for the stock based on the given `FormattedDate` parameter
+ * @function
+ * @param date Formatted date
+ * @returns {Promise<string>} A promise resolving the number of created folders
+ */
+export async function createDate(date: FormattedDate): Promise<string> {
+    let i = 0;
+    return await new Promise((resolve, reject) => {
+        try {
+            const rootDir = `./${config.config.server.rootDir}`;
+            const datePath = `${date.year}/${date.month}/${date.day}`;
+
+            config.config.categories.forEach((category) => {
+                if (category.trim() == null || category.trim() == '') return;
+                if (/[\\/:*?"<>|]/ig.test(category)) return;
+
+                const fullPath = path.resolve(`${rootDir}/${category}/${datePath}`);
+
+                if (!fs.existsSync(fullPath)) {
+                    i++;
+                    fs.mkdirSync(fullPath, { recursive: true });
+                }
+            });
+        } catch (err) {
+            reject(err);
+        }
+        resolve(i.toString());
+    });
+}
+
+/**
+ * Checks if a string is a positive integer
+ * @function
+ * @param text The string to be checked
+ * @returns {boolean} Whether `text` is a positive integer
+ */
+export function isInteger(text: string): boolean {
+    if (text.length === 0) return false;
+
+    if (isNaN(Number(text)) || !Number.isSafeInteger(Number(text)) || !Number.isInteger(Number(text))) return false;
+
+    let isInteger: boolean = true;
+    for (let i = 0; i < text.length; i++) {
+        if (isNaN(Number(text.charAt(i))) || !Number.isSafeInteger(Number(text.charAt(i)))) { isInteger = false; break; }
+    }
+
+    if (parseInt(text) <= 0) isInteger = false;
+
+    return isInteger;
+}
+
+/**
+ * Generates the AES key (for the signatures)
+ * @function
+ * @returns {void}
+ */
+export function generateKey(): void {
+    try {
+        let dir = path.resolve('./signature');
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+
+        fs.writeFileSync(`${dir}/key`, crypto.randomBytes(32).toString('hex'));
+    } catch (err) {
+        console.log(err);
+    }
+}
+
+/**
+ * Encrypts signatures
+ * @function
+ * @param query The string to encrypt
+ * @param secret The decryption key
+ * @returns {EncryptedSignature | null} An object containing the `initialization vector` and the `encrypted string` or `null`, in case of an error
+ */
+export function generateSignature(query: string, secret: Buffer): EncryptedSignature | null {
+    try {
+        let iv = crypto.randomBytes(16);
+        let cipher = crypto.createCipheriv('aes-256-cbc', secret, iv);
+        let encryptedQuery = cipher.update(query, 'utf8', 'hex');
+        encryptedQuery += cipher.final('hex');
+
+        return { iv: iv.toString('hex'), signature: encryptedQuery };
+    } catch (err) {
+        console.log(err);
+        return null;
+    }
+}
+
+/**
+ * Decrypts signatures
+ * @function
+ * @param encryptedQuery The encrypted string
+ * @param secret The decryption key
+ * @param iv The initialization vector
+ * @returns {string | null} The `decrypted string` or `null`, in case of an error
+ */
+export function decryptSignature(encryptedQuery: string, secret: Buffer, iv: string): string | null {
+    try {
+        let decipher = crypto.createDecipheriv('aes-256-cbc', secret, Buffer.from(iv, 'hex'));
+        let decryptedQuery = decipher.update(encryptedQuery, 'hex', 'utf8');
+        decryptedQuery += decipher.final('utf8');
+
+        return decryptedQuery;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Checks the difference between a given time and the current time
+ * @function
+ * @param time The time (in seconds)
+ * @param maxDifference The maximum required difference between `Date.now()` and `time`
+ * @returns {boolean} Whether the difference between `Date.now()` and `time` is less than or equal to `maxDifference`
+ */
+export function checkDifference(time: string | number, maxDifference: number): boolean {
+    try {
+        let timestamp = parseInt(time.toString(), 10);
+        let difference = Math.floor((Date.now() - timestamp) / 1000);
+
+        return difference <= maxDifference;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Setups the server and the Express routes
+ * @function
+ * @returns {void}
+ */
+export function serverSetup(): void {
+    if (server.app) {
+        try {
+            server.app!.disable('x-powered-by');
+            server.app!.set('view engine', 'ejs');
+            server.app!.set('views', path.resolve(`./views`));
+
+            if (process.env.NODE_ENV === 'development') {
+                server.app.use((req, _res, next) => {
+                    console.log(`${new Date(Date.now()).toString()}:\nIP: ${req.ip}\nURL: ${req.originalUrl}\nMethod: ${req.method}\nRequest headers:\n  ${req.rawHeaders.map((value, index) => (index % 2 === 0) ? `\n  ${value.trim()}` : `: ${value.trim()}`).join('').trim()}\nRequest body: ${req.body}`);
+                    next();
+                });
+            }
+
+            server.app.use((_req, res, next) => {
+                if (server.server) {
+                    if (!server.server.listening) { res.status(503).end(); return; }
+                }
+                next();
+            }, (_req, res, next) => {
+                res.set('Cache-Control', 'private, no-cache, no-store, must-revalidate, max-age=0');
+                res.set('Expires', 'Mon, 01 Jan 1990 00:00:00 GMT');
+                res.set('Pragma', 'no-cache');
+                next();
+            }, cors(), compression());
+
+            server.app.use(root, category, year, month, day, filename);
+
+            server.app.use((_req, res, _next) => {
+                res.status(404).end();
+            });
+
+            if (process.env.TLS_KEY && process.env.TLS_CERT) {
+                server.server = https.createServer({ key: fs.readFileSync(path.resolve(process.env.TLS_KEY)), cert: fs.readFileSync(path.resolve(process.env.TLS_CERT)) }, server.app);
+            } else {
+                server.server = http.createServer(server.app);
+            }
+
+            server.server.timeout = config.config.server.socketTimeout;
+            server.server.keepAliveTimeout = config.config.server.keepAliveTimeout;
+            server.server.requestTimeout = config.config.server.requestTimeout;
+            server.server.headersTimeout = config.config.server.headersTimeout;
+
+            generateKey();
+
+            server.server.listen(config.config.server.port, () => {
+                console.log(`Listening on port ${config.config.server.port} ${(process.env.TLS_KEY && process.env.TLS_CERT) ? '(HTTPS)' : '(HTTP)'}`);
+                if (!cmdPrompt) {
+                    cmdPrompt = true;
+                    commandPrompt();
+                }
+            });
+        } catch (err) {
+            console.log(err);
+            process.exit(7);
+        }
+    } else {
+        console.log('Express app not initialized');
+        process.exit(0);
+    }
+}
+
+/**
+ * Closes all connections and stops the server
+ * @function
+ * @returns {void}
+ */
+export function stopServer(): void {
+    try {
+        if (server.app) server.app.removeAllListeners();
+
+        if (server.server) {
+            server.server.removeAllListeners();
+            server.server.closeAllConnections();
+            server.server.unref();
+            server.server.close((err) => {
+                if (err) {
+                    if (process.env.NODE_ENV && process.env.NODE_ENV === 'development') console.log(err);
+                    process.exit(0);
+                }
+            });
+        }
+    } catch (err) {
+        console.log(err);
+    }
+}
+
+/**
+ * Adds a category to config
+ * @function
+ * @param name The category's name
+ * @returns {void}
+ */
+export function addCategory(name: string): void {
+    config.config.categories.push(name);
+    config.rewrite();
+
+    console.log(`Category \"${name}\" has been created. You need to use the \"createtoday\" command to create its folder`);
+}
+
+/**
+ * Changes the domain name for the server
+ * @function
+ * @param domain The new domain name
+ * @returns {void}
+ */
+export function changeDomain(domain: string): void {
+    config.config.server.domain = domain;
+    config.rewrite();
+
+    console.log('Domain changed successfully. You may need to restart the bot for the changes to take effect');
+}
+
+/**
+ * Changes the port for the server
+ * @function
+ * @param port The new port
+ * @returns {void}
+ */
+export function changePort(port: number): void {
+    config.config.server.port = port;
+    config.rewrite();
+
+    console.log('Port changed successfully. You need to restart the bot for the changes to take effect');
+}
+
+/**
+ * Changes the root directory of the server
+ * @function
+ * @param dirName The new directory name
+ * @returns {void}
+ */
+export function changeDir(dirName: string): void {
+    config.config.server.rootDir = dirName;
+    config.rewrite();
+
+    console.log('Directory changed successfully. You need to restart the bot for the changes to take effect. You will also need to run the \"createtoday\" command to create the new folder');
+}
+
+/**
+ * Changes the server's `socket` timeout
+ * @function
+ * @param timeout The new `socket` timeout
+ * @returns {void}
+ */
+export function changeSocketTimeout(timeout: number): void {
+    config.config.server.socketTimeout = timeout;
+    config.rewrite();
+    if (server.server) server.server.timeout = config.config.server.socketTimeout;
+
+    console.log('Socket timeout changed successfully. Note that the timeout for existing connections has not been changed');
+}
+
+/**
+ * Changes the server's `keep-alive` timeout
+ * @function
+ * @param timeout The new `keep-alive` timeout
+ * @returns {void}
+ */
+export function changeKeepAliveTimeout(timeout: number): void {
+    config.config.server.keepAliveTimeout = timeout;
+    config.rewrite();
+    if (server.server) server.server.keepAliveTimeout = config.config.server.keepAliveTimeout;
+
+    console.log('Server keep-alive timeout changed successfully. Note that the timeout for existing connections has not been changed');
+}
+
+/**
+ * Changes the server's `request` timeout
+ * @function
+ * @param timeout The new `request` timeout
+ * @returns {void}
+ */
+export function changeRequestTimeout(timeout: number): void {
+    config.config.server.requestTimeout = timeout;
+    config.rewrite();
+    if (server.server) server.server.requestTimeout = config.config.server.requestTimeout;
+
+    console.log('Server request timeout changed successfully. Note that the timeout for existing connections has not been changed');
+}
+
+/**
+ * Changes the server's `headers` timeout
+ * @function
+ * @param timeout The new `headers` timeout
+ * @returns {void}
+ */
+export function changeHeadersTimeout(timeout: number): void {
+    config.config.server.headersTimeout = timeout;
+    config.rewrite();
+    if (server.server) server.server.headersTimeout = config.config.server.headersTimeout;
+
+    console.log('Server headers timeout changed successfully. Note that the timeout for existing connections has not been changed');
+}
+
+/**
+ * Changes the expiration time of the signatures
+ * @function
+ * @param expiry The new expiry time
+ * @return {void}
+ */
+export function changeSignatureExpiry(expiry: number): void {
+    config.config.server.signatureExpiry = expiry;
+    config.rewrite();
+
+    generateKey();
+
+    console.log('Signature expiry time changed successfully. The existing signatures have been invalidated');
+}
+
+/**
+ * Changes the number of files per page
+ * @function
+ * @param filesPerPage The new `files per day` value
+ * @returns {void}
+ */
+export function changeFilesPerPage(filesPerPage: number): void {
+    config.config.filesPerPage = filesPerPage;
+    config.rewrite();
+
+    console.log('Files per page value changed successfully');
+}
+
+/**
+ * Changes the maximum number of files per day
+ * @function
+ * @param maxFilesPerDay The new `max files per day` value
+ * @returns {void}
+ */
+export function changeMaxFilesPerDay(maxFilesPerDay: number): void {
+    config.config.maxFilesPerDay = maxFilesPerDay;
+    config.rewrite();
+
+    console.log('Maximum files per day value changed successfully');
+}
+
+/**
+ * Sends a forbidden response to a request (typically when a signature expires)
+ * @function
+ * @param res The response object
+ * @returns {boolean} Whether the file was successfully sent or an error occurred
+ */
+export function sendForbidden(res: Response): boolean {
+    try {
+        res.set('Content-Type', 'image/jpeg');
+        res.status(200).sendFile(path.resolve(`./views/403.jpg`), (err) => {
+            if (err) {
+                if (process.env.NODE_ENV && process.env.NODE_ENV === 'development') console.log(err);
+                res.status(500).end();
+            }
+        });
+        return true;
+    } catch (err) {
+        console.log(err);
+        return false;
+    }
+}
+
+/**
+ * Gets the HTTP protocol based on the presence of a TLS certificate
+ * @function
+ * @returns {'http' | 'https'} The URL protocol
+ */
+export function getURLProtocol(): 'http' | 'https' {
+    if (process.env.TLS_CERT && process.env.TLS_KEY) {
+        return 'https';
+    } else {
+        return 'http';
+    }
+}
+
+/**
+ * Gets the port in the URL syntax
+ * 
+ * Returns `''` if the port is either `80` or `443`, as modern browsers omit the port if it is one of those two
+ * @function
+ * @param port The port
+ * @returns {'' | `:${number}`} The port in URL syntax or `''`, if `80` or '443'
+ */
+export function getURLPort(port: number): '' | `:${number}` {
+    try {
+        if (isInteger(port.toString())) {
+            if (port === 80 || port === 443) {
+                return '';
+            } else {
+                return `:${port}`;
+            }
+        } else {
+            throw new Error('Invalid port number');
+        }
+    } catch (err) {
+        throw err;
+    }
+}

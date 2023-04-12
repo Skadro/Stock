@@ -1,0 +1,666 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.getURLPort = exports.getURLProtocol = exports.sendForbidden = exports.changeMaxFilesPerDay = exports.changeFilesPerPage = exports.changeSignatureExpiry = exports.changeHeadersTimeout = exports.changeRequestTimeout = exports.changeKeepAliveTimeout = exports.changeSocketTimeout = exports.changeDir = exports.changePort = exports.changeDomain = exports.addCategory = exports.stopServer = exports.serverSetup = exports.checkDifference = exports.decryptSignature = exports.generateSignature = exports.generateKey = exports.isInteger = exports.createDate = exports.formatDate = exports.commandPrompt = void 0;
+// External libs
+const fs_1 = __importDefault(require("fs"));
+const path_1 = __importDefault(require("path"));
+const express_1 = __importDefault(require("express"));
+const http_1 = __importDefault(require("http"));
+const https_1 = __importDefault(require("https"));
+const cors_1 = __importDefault(require("cors"));
+const compression_1 = __importDefault(require("compression"));
+const crypto_1 = __importDefault(require("crypto"));
+const readline_1 = __importDefault(require("readline"));
+const rl = readline_1.default.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+});
+// Routes
+const root_1 = __importDefault(require("../routes/root"));
+const category_1 = __importDefault(require("../routes/category"));
+const year_1 = __importDefault(require("../routes/year"));
+const month_1 = __importDefault(require("../routes/month"));
+const day_1 = __importDefault(require("../routes/day"));
+const filename_1 = __importDefault(require("../routes/filename"));
+const Storage_1 = require("./Storage");
+var cmdPrompt = false;
+/**
+ * A command prompt within the application that can be used to perform a variety of tasks
+ * @function
+ * @returns {Promise<void>}
+ */
+async function commandPrompt() {
+    rl.question('Command: ', async (command) => {
+        try {
+            let args = command.slice(0).split(/ +/);
+            let cmd = args.shift();
+            if (cmd) {
+                cmd = cmd.toLowerCase();
+                switch (cmd) {
+                    case 'reload_config':
+                    case 'reload_cfg':
+                        Storage_1.config.reload();
+                        break;
+                    case 'stop':
+                    case 'shutdown':
+                        stopServer();
+                        process.exit(0);
+                    case 'restart_server':
+                    case 'restart':
+                        stopServer();
+                        Storage_1.server.app = (0, express_1.default)();
+                        serverSetup();
+                        break;
+                    case 'createtoday':
+                        await createDate(formatDate(new Date(Date.now()))).then((i) => {
+                            console.log(`Created today\'s folders for ${i} category(-ies)`);
+                            Storage_1.config.reload();
+                        }).catch((err) => {
+                            console.log(err);
+                        });
+                        break;
+                    case 'get_connections':
+                        if (Storage_1.server.server) {
+                            Storage_1.server.server.getConnections((err, count) => {
+                                if (err) {
+                                    console.log(err);
+                                    return;
+                                }
+                                console.log(`Current connections: ${count}`);
+                            });
+                        }
+                        break;
+                    case 'generate_key':
+                    case 'regenerate_key':
+                        generateKey();
+                        break;
+                    case 'add_category':
+                    case 'category':
+                        if (!args[0]) {
+                            console.log('You must provide the category name');
+                            break;
+                        }
+                        if (/[\\/:*?"<>|]/ig.test(args[0])) {
+                            console.log('The category name must not contain the following characters:\n\\ / : * ? " < > |');
+                            return;
+                        }
+                        addCategory(args[0]);
+                        break;
+                    case 'change_domain':
+                        if (!args[0]) {
+                            console.log('You must provide the domain name');
+                            break;
+                        }
+                        changeDomain(args[0]);
+                        break;
+                    case 'change_port':
+                        if (!args[0]) {
+                            console.log('You must provide the port');
+                            break;
+                        }
+                        if (!isInteger(args[0])) {
+                            console.log('The port must be a positive integer');
+                            break;
+                        }
+                        changePort(parseInt(args[0]));
+                        break;
+                    case 'change_dir':
+                        if (!args[0]) {
+                            console.log('You must provide the directory name');
+                            break;
+                        }
+                        changeDir(args[0]);
+                        break;
+                    case 'change_sockettimeout':
+                    case 'change_socket':
+                        if (!args[0]) {
+                            console.log('You must provide the socket timeout value (in milliseconds)');
+                            break;
+                        }
+                        if (!isInteger(args[0])) {
+                            console.log('The socket timeout value must be a positive integer');
+                            break;
+                        }
+                        changeSocketTimeout(parseInt(args[0]));
+                        break;
+                    case 'change_keepalivetimeout':
+                    case 'change_keepalive':
+                        if (!args[0]) {
+                            console.log('You must provide the keep-alive timeout value (in milliseconds)');
+                            break;
+                        }
+                        if (!isInteger(args[0])) {
+                            console.log('The keep-alive timeout value must be a positive integer');
+                            break;
+                        }
+                        changeKeepAliveTimeout(parseInt(args[0]));
+                        break;
+                    case 'change_requesttimeout':
+                    case 'change_request':
+                        if (!args[0]) {
+                            console.log('You must provide the request timeout value (in milliseconds)');
+                            break;
+                        }
+                        if (!isInteger(args[0])) {
+                            console.log('The request timeout value must be a positive integer');
+                            break;
+                        }
+                        changeRequestTimeout(parseInt(args[0]));
+                        break;
+                    case 'change_headerstimeout':
+                    case 'change_headers':
+                        if (!args[0]) {
+                            console.log('You must provide the headers timeout value (in milliseconds)');
+                            break;
+                        }
+                        if (!isInteger(args[0])) {
+                            console.log('The headers timeout value must be a positive integer');
+                            break;
+                        }
+                        changeHeadersTimeout(parseInt(args[0]));
+                        break;
+                    case 'change_sigexpiry':
+                    case 'change_expiry':
+                        if (!args[0]) {
+                            console.log('You must provide the expiry time (in seconds)');
+                            break;
+                        }
+                        if (!isInteger(args[0])) {
+                            console.log('The expiry time must be a positive integer');
+                            break;
+                        }
+                        changeSignatureExpiry(parseInt(args[0]));
+                        break;
+                    case 'change_filesperpage':
+                    case 'change_pages':
+                        if (!args[0]) {
+                            console.log('You must provide the number of files per page');
+                            break;
+                        }
+                        if (!isInteger(args[0])) {
+                            console.log('The files per page value must be a positive integer');
+                            break;
+                        }
+                        changeFilesPerPage(parseInt(args[0]));
+                        break;
+                    case 'change_maxfilesperday':
+                    case 'change_maxfiles':
+                        if (!args[0]) {
+                            console.log('You must provide the number of files per day');
+                            break;
+                        }
+                        if (!isInteger(args[0])) {
+                            console.log('The files per day value must be a positive integer');
+                            break;
+                        }
+                        changeMaxFilesPerDay(parseInt(args[0]));
+                        break;
+                    default:
+                        commandPrompt();
+                }
+            }
+            setTimeout(() => commandPrompt(), 1000);
+        }
+        catch (err) {
+            console.log(err);
+        }
+    });
+}
+exports.commandPrompt = commandPrompt;
+/**
+ * A date formatter that is used when creating stock directories
+ * @function
+ * @param date A `Date` instance
+ * @returns {FormattedDate} the formatted date
+ */
+function formatDate(date) {
+    const month = date.getUTCMonth() + 1;
+    const day = date.getUTCDate();
+    let finalDate = { year: '', month: '', day: '' };
+    finalDate.year = date.getUTCFullYear().toString();
+    if (month.toString().length < 2) {
+        finalDate.month = "0" + month.toString();
+    }
+    else {
+        finalDate.month = month.toString();
+    }
+    if (day.toString().length < 2) {
+        finalDate.day = "0" + day.toString();
+    }
+    else {
+        finalDate.day = day.toString();
+    }
+    return finalDate;
+}
+exports.formatDate = formatDate;
+/**
+ * Creates the directories for the stock based on the given `FormattedDate` parameter
+ * @function
+ * @param date Formatted date
+ * @returns {Promise<string>} A promise resolving the number of created folders
+ */
+async function createDate(date) {
+    let i = 0;
+    return await new Promise((resolve, reject) => {
+        try {
+            const rootDir = `./${Storage_1.config.config.server.rootDir}`;
+            const datePath = `${date.year}/${date.month}/${date.day}`;
+            Storage_1.config.config.categories.forEach((category) => {
+                if (category.trim() == null || category.trim() == '')
+                    return;
+                if (/[\\/:*?"<>|]/ig.test(category))
+                    return;
+                const fullPath = path_1.default.resolve(`${rootDir}/${category}/${datePath}`);
+                if (!fs_1.default.existsSync(fullPath)) {
+                    i++;
+                    fs_1.default.mkdirSync(fullPath, { recursive: true });
+                }
+            });
+        }
+        catch (err) {
+            reject(err);
+        }
+        resolve(i.toString());
+    });
+}
+exports.createDate = createDate;
+/**
+ * Checks if a string is a positive integer
+ * @function
+ * @param text The string to be checked
+ * @returns {boolean} Whether `text` is a positive integer
+ */
+function isInteger(text) {
+    if (text.length === 0)
+        return false;
+    if (isNaN(Number(text)) || !Number.isSafeInteger(Number(text)) || !Number.isInteger(Number(text)))
+        return false;
+    let isInteger = true;
+    for (let i = 0; i < text.length; i++) {
+        if (isNaN(Number(text.charAt(i))) || !Number.isSafeInteger(Number(text.charAt(i)))) {
+            isInteger = false;
+            break;
+        }
+    }
+    if (parseInt(text) <= 0)
+        isInteger = false;
+    return isInteger;
+}
+exports.isInteger = isInteger;
+/**
+ * Generates the AES key (for the signatures)
+ * @function
+ * @returns {void}
+ */
+function generateKey() {
+    try {
+        let dir = path_1.default.resolve('./signature');
+        if (!fs_1.default.existsSync(dir))
+            fs_1.default.mkdirSync(dir);
+        fs_1.default.writeFileSync(`${dir}/key`, crypto_1.default.randomBytes(32).toString('hex'));
+    }
+    catch (err) {
+        console.log(err);
+    }
+}
+exports.generateKey = generateKey;
+/**
+ * Encrypts signatures
+ * @function
+ * @param query The string to encrypt
+ * @param secret The decryption key
+ * @returns {EncryptedSignature | null} An object containing the `initialization vector` and the `encrypted string` or `null`, in case of an error
+ */
+function generateSignature(query, secret) {
+    try {
+        let iv = crypto_1.default.randomBytes(16);
+        let cipher = crypto_1.default.createCipheriv('aes-256-cbc', secret, iv);
+        let encryptedQuery = cipher.update(query, 'utf8', 'hex');
+        encryptedQuery += cipher.final('hex');
+        return { iv: iv.toString('hex'), signature: encryptedQuery };
+    }
+    catch (err) {
+        console.log(err);
+        return null;
+    }
+}
+exports.generateSignature = generateSignature;
+/**
+ * Decrypts signatures
+ * @function
+ * @param encryptedQuery The encrypted string
+ * @param secret The decryption key
+ * @param iv The initialization vector
+ * @returns {string | null} The `decrypted string` or `null`, in case of an error
+ */
+function decryptSignature(encryptedQuery, secret, iv) {
+    try {
+        let decipher = crypto_1.default.createDecipheriv('aes-256-cbc', secret, Buffer.from(iv, 'hex'));
+        let decryptedQuery = decipher.update(encryptedQuery, 'hex', 'utf8');
+        decryptedQuery += decipher.final('utf8');
+        return decryptedQuery;
+    }
+    catch {
+        return null;
+    }
+}
+exports.decryptSignature = decryptSignature;
+/**
+ * Checks the difference between a given time and the current time
+ * @function
+ * @param time The time (in seconds)
+ * @param maxDifference The maximum required difference between `Date.now()` and `time`
+ * @returns {boolean} Whether the difference between `Date.now()` and `time` is less than or equal to `maxDifference`
+ */
+function checkDifference(time, maxDifference) {
+    try {
+        let timestamp = parseInt(time.toString(), 10);
+        let difference = Math.floor((Date.now() - timestamp) / 1000);
+        return difference <= maxDifference;
+    }
+    catch {
+        return false;
+    }
+}
+exports.checkDifference = checkDifference;
+/**
+ * Setups the server and the Express routes
+ * @function
+ * @returns {void}
+ */
+function serverSetup() {
+    if (Storage_1.server.app) {
+        try {
+            Storage_1.server.app.disable('x-powered-by');
+            Storage_1.server.app.set('view engine', 'ejs');
+            Storage_1.server.app.set('views', path_1.default.resolve(`./views`));
+            if (process.env.NODE_ENV === 'development') {
+                Storage_1.server.app.use((req, _res, next) => {
+                    console.log(`${new Date(Date.now()).toString()}:\nIP: ${req.ip}\nURL: ${req.originalUrl}\nMethod: ${req.method}\nRequest headers:\n  ${req.rawHeaders.map((value, index) => (index % 2 === 0) ? `\n  ${value.trim()}` : `: ${value.trim()}`).join('').trim()}\nRequest body: ${req.body}`);
+                    next();
+                });
+            }
+            Storage_1.server.app.use((_req, res, next) => {
+                if (Storage_1.server.server) {
+                    if (!Storage_1.server.server.listening) {
+                        res.status(503).end();
+                        return;
+                    }
+                }
+                next();
+            }, (_req, res, next) => {
+                res.set('Cache-Control', 'private, no-cache, no-store, must-revalidate, max-age=0');
+                res.set('Expires', 'Mon, 01 Jan 1990 00:00:00 GMT');
+                res.set('Pragma', 'no-cache');
+                next();
+            }, (0, cors_1.default)(), (0, compression_1.default)());
+            Storage_1.server.app.use(root_1.default, category_1.default, year_1.default, month_1.default, day_1.default, filename_1.default);
+            Storage_1.server.app.use((_req, res, _next) => {
+                res.status(404).end();
+            });
+            if (process.env.TLS_KEY && process.env.TLS_CERT) {
+                Storage_1.server.server = https_1.default.createServer({ key: fs_1.default.readFileSync(path_1.default.resolve(process.env.TLS_KEY)), cert: fs_1.default.readFileSync(path_1.default.resolve(process.env.TLS_CERT)) }, Storage_1.server.app);
+            }
+            else {
+                Storage_1.server.server = http_1.default.createServer(Storage_1.server.app);
+            }
+            Storage_1.server.server.timeout = Storage_1.config.config.server.socketTimeout;
+            Storage_1.server.server.keepAliveTimeout = Storage_1.config.config.server.keepAliveTimeout;
+            Storage_1.server.server.requestTimeout = Storage_1.config.config.server.requestTimeout;
+            Storage_1.server.server.headersTimeout = Storage_1.config.config.server.headersTimeout;
+            generateKey();
+            Storage_1.server.server.listen(Storage_1.config.config.server.port, () => {
+                console.log(`Listening on port ${Storage_1.config.config.server.port} ${(process.env.TLS_KEY && process.env.TLS_CERT) ? '(HTTPS)' : '(HTTP)'}`);
+                if (!cmdPrompt) {
+                    cmdPrompt = true;
+                    commandPrompt();
+                }
+            });
+        }
+        catch (err) {
+            console.log(err);
+            process.exit(7);
+        }
+    }
+    else {
+        console.log('Express app not initialized');
+        process.exit(0);
+    }
+}
+exports.serverSetup = serverSetup;
+/**
+ * Closes all connections and stops the server
+ * @function
+ * @returns {void}
+ */
+function stopServer() {
+    try {
+        if (Storage_1.server.app)
+            Storage_1.server.app.removeAllListeners();
+        if (Storage_1.server.server) {
+            Storage_1.server.server.removeAllListeners();
+            Storage_1.server.server.closeAllConnections();
+            Storage_1.server.server.unref();
+            Storage_1.server.server.close((err) => {
+                if (err) {
+                    if (process.env.NODE_ENV && process.env.NODE_ENV === 'development')
+                        console.log(err);
+                    process.exit(0);
+                }
+            });
+        }
+    }
+    catch (err) {
+        console.log(err);
+    }
+}
+exports.stopServer = stopServer;
+/**
+ * Adds a category to config
+ * @function
+ * @param name The category's name
+ * @returns {void}
+ */
+function addCategory(name) {
+    Storage_1.config.config.categories.push(name);
+    Storage_1.config.rewrite();
+    console.log(`Category \"${name}\" has been created. You need to use the \"createtoday\" command to create its folder`);
+}
+exports.addCategory = addCategory;
+/**
+ * Changes the domain name for the server
+ * @function
+ * @param domain The new domain name
+ * @returns {void}
+ */
+function changeDomain(domain) {
+    Storage_1.config.config.server.domain = domain;
+    Storage_1.config.rewrite();
+    console.log('Domain changed successfully. You may need to restart the bot for the changes to take effect');
+}
+exports.changeDomain = changeDomain;
+/**
+ * Changes the port for the server
+ * @function
+ * @param port The new port
+ * @returns {void}
+ */
+function changePort(port) {
+    Storage_1.config.config.server.port = port;
+    Storage_1.config.rewrite();
+    console.log('Port changed successfully. You need to restart the bot for the changes to take effect');
+}
+exports.changePort = changePort;
+/**
+ * Changes the root directory of the server
+ * @function
+ * @param dirName The new directory name
+ * @returns {void}
+ */
+function changeDir(dirName) {
+    Storage_1.config.config.server.rootDir = dirName;
+    Storage_1.config.rewrite();
+    console.log('Directory changed successfully. You need to restart the bot for the changes to take effect. You will also need to run the \"createtoday\" command to create the new folder');
+}
+exports.changeDir = changeDir;
+/**
+ * Changes the server's `socket` timeout
+ * @function
+ * @param timeout The new `socket` timeout
+ * @returns {void}
+ */
+function changeSocketTimeout(timeout) {
+    Storage_1.config.config.server.socketTimeout = timeout;
+    Storage_1.config.rewrite();
+    if (Storage_1.server.server)
+        Storage_1.server.server.timeout = Storage_1.config.config.server.socketTimeout;
+    console.log('Socket timeout changed successfully. Note that the timeout for existing connections has not been changed');
+}
+exports.changeSocketTimeout = changeSocketTimeout;
+/**
+ * Changes the server's `keep-alive` timeout
+ * @function
+ * @param timeout The new `keep-alive` timeout
+ * @returns {void}
+ */
+function changeKeepAliveTimeout(timeout) {
+    Storage_1.config.config.server.keepAliveTimeout = timeout;
+    Storage_1.config.rewrite();
+    if (Storage_1.server.server)
+        Storage_1.server.server.keepAliveTimeout = Storage_1.config.config.server.keepAliveTimeout;
+    console.log('Server keep-alive timeout changed successfully. Note that the timeout for existing connections has not been changed');
+}
+exports.changeKeepAliveTimeout = changeKeepAliveTimeout;
+/**
+ * Changes the server's `request` timeout
+ * @function
+ * @param timeout The new `request` timeout
+ * @returns {void}
+ */
+function changeRequestTimeout(timeout) {
+    Storage_1.config.config.server.requestTimeout = timeout;
+    Storage_1.config.rewrite();
+    if (Storage_1.server.server)
+        Storage_1.server.server.requestTimeout = Storage_1.config.config.server.requestTimeout;
+    console.log('Server request timeout changed successfully. Note that the timeout for existing connections has not been changed');
+}
+exports.changeRequestTimeout = changeRequestTimeout;
+/**
+ * Changes the server's `headers` timeout
+ * @function
+ * @param timeout The new `headers` timeout
+ * @returns {void}
+ */
+function changeHeadersTimeout(timeout) {
+    Storage_1.config.config.server.headersTimeout = timeout;
+    Storage_1.config.rewrite();
+    if (Storage_1.server.server)
+        Storage_1.server.server.headersTimeout = Storage_1.config.config.server.headersTimeout;
+    console.log('Server headers timeout changed successfully. Note that the timeout for existing connections has not been changed');
+}
+exports.changeHeadersTimeout = changeHeadersTimeout;
+/**
+ * Changes the expiration time of the signatures
+ * @function
+ * @param expiry The new expiry time
+ * @return {void}
+ */
+function changeSignatureExpiry(expiry) {
+    Storage_1.config.config.server.signatureExpiry = expiry;
+    Storage_1.config.rewrite();
+    generateKey();
+    console.log('Signature expiry time changed successfully. The existing signatures have been invalidated');
+}
+exports.changeSignatureExpiry = changeSignatureExpiry;
+/**
+ * Changes the number of files per page
+ * @function
+ * @param filesPerPage The new `files per day` value
+ * @returns {void}
+ */
+function changeFilesPerPage(filesPerPage) {
+    Storage_1.config.config.filesPerPage = filesPerPage;
+    Storage_1.config.rewrite();
+    console.log('Files per page value changed successfully');
+}
+exports.changeFilesPerPage = changeFilesPerPage;
+/**
+ * Changes the maximum number of files per day
+ * @function
+ * @param maxFilesPerDay The new `max files per day` value
+ * @returns {void}
+ */
+function changeMaxFilesPerDay(maxFilesPerDay) {
+    Storage_1.config.config.maxFilesPerDay = maxFilesPerDay;
+    Storage_1.config.rewrite();
+    console.log('Maximum files per day value changed successfully');
+}
+exports.changeMaxFilesPerDay = changeMaxFilesPerDay;
+/**
+ * Sends a forbidden response to a request (typically when a signature expires)
+ * @function
+ * @param res The response object
+ * @returns {boolean} Whether the file was successfully sent or an error occurred
+ */
+function sendForbidden(res) {
+    try {
+        res.set('Content-Type', 'image/jpeg');
+        res.status(200).sendFile(path_1.default.resolve(`./views/403.jpg`), (err) => {
+            if (err) {
+                if (process.env.NODE_ENV && process.env.NODE_ENV === 'development')
+                    console.log(err);
+                res.status(500).end();
+            }
+        });
+        return true;
+    }
+    catch (err) {
+        console.log(err);
+        return false;
+    }
+}
+exports.sendForbidden = sendForbidden;
+/**
+ * Gets the HTTP protocol based on the presence of a TLS certificate
+ * @function
+ * @returns {'http' | 'https'} The URL protocol
+ */
+function getURLProtocol() {
+    if (process.env.TLS_CERT && process.env.TLS_KEY) {
+        return 'https';
+    }
+    else {
+        return 'http';
+    }
+}
+exports.getURLProtocol = getURLProtocol;
+/**
+ * Gets the port in the URL syntax
+ *
+ * Returns `''` if the port is either `80` or `443`, as modern browsers omit the port if it is one of those two
+ * @function
+ * @param port The port
+ * @returns {'' | `:${number}`} The port in URL syntax or `''`, if `80` or '443'
+ */
+function getURLPort(port) {
+    try {
+        if (isInteger(port.toString())) {
+            if (port === 80 || port === 443) {
+                return '';
+            }
+            else {
+                return `:${port}`;
+            }
+        }
+        else {
+            throw new Error('Invalid port number');
+        }
+    }
+    catch (err) {
+        throw err;
+    }
+}
+exports.getURLPort = getURLPort;

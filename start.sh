@@ -1,1 +1,1 @@
-sudo ts-node index.js
+sudo npm run start

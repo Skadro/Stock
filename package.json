@@ -1,41 +1,44 @@
 {
   "name": "stock",
-  "version": "3.0.0",
-  "description": "",
-  "main": "index.ts",
+  "version": "4.0.0",
+  "description": "A RESTful image cataloging web service",
+  "main": "./src/index.ts",
   "scripts": {
-    "start": "ts-node index.ts"
+    "start": "ts-node ./src/index.ts"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Skadro/Stock.git"
+    "url": "https://github.com/Skadro/Stock.git"
   },
-  "author": "Skadro",
+  "author": {
+    "name": "Skadro",
+    "email": "skadrobk@yahoo.com",
+    "url": "https://github.com/Skadro"
+  },
   "license": "GPL-3.0",
   "homepage": "https://github.com/Skadro/Stock",
   "dependencies": {
-    "cors": "latest",
-    "discord.js": "latest",
-    "dotenv": "latest",
-    "express": "latest",
-    "fluent-ffmpeg": "latest",
-    "fs": "latest"
+    "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "ejs": "^3.1.9",
+    "express": "^4.18.2",
+    "fluent-ffmpeg": "^2.1.2",
+    "mime": "^3.0.0",
+    "node": ">=19.8.1"
   },
   "devDependencies": {
-    "@types/cors": "latest",
-    "@types/express": "latest",
-    "@types/fluent-ffmpeg": "latest",
-    "@types/node": "latest",
-    "discord.js": "latest",
-    "fs": "latest",
-    "nodemon": "latest",
-    "ts-node": "latest",
-    "typescript": "latest"
+    "@types/compression": "^1.7.2",
+    "@types/cors": "^2.8.13",
+    "@types/ejs": "^3.1.2",
+    "@types/express": "^4.17.17",
+    "@types/fluent-ffmpeg": "^2.1.21",
+    "@types/mime": "^3.0.1",
+    "@types/node": ">=18.15.11",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.4"
   },
-  "nodemonConfig": {
-    "ignore": [
-      "config.json"
-    ],
-    "delay": 2500
+  "engines": {
+    "node": ">=19.9.0"
   }
 }
