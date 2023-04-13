@@ -74,10 +74,10 @@ router.get(`/${config.config.server.rootDir}/:category/:year/:month/:day`, (req,
 
         res.status(200).render('index', {
             meta: {
-                pageTitle: `Page ${(req.query.page) ? req.query.page : '1'} - ${req.params.day}/${req.params.month}/${req.params.year} stock`,
+                pageTitle: `Page ${(req.query.page) ? req.query.page : '1'} - ${req.params.day}/${req.params.month}/${req.params.year} ${req.params.category} stock`,
                 title: `Stock`,
                 date: `${req.params.day}/${req.params.month}/${req.params.year}`,
-                description: `The ${req.params.day}/${req.params.month}/${req.params.year} stock with ${(files.length === 1) ? `1 file` : `${files.length} files`} is available now`,
+                description: `The ${req.params.day}/${req.params.month}/${req.params.year} ${req.params.category} stock with ${(files.length === 1) ? `1 file` : `${files.length} files`} is available now`,
                 siteName: 'Gu Stock',
                 url: `${getURLProtocol()}://${config.config.server.domain}${getURLPort(config.config.server.port)}/${config.config.server.rootDir}/${req.params.category}/${req.params.year}/${req.params.month}/${req.params.day}`
             },
