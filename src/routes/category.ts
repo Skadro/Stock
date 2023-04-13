@@ -77,7 +77,7 @@ router.get(`/${config.config.server.rootDir}/:category`, async (req, res) => {
                                         'height': data.streams[0].height,
                                         'title': path.parse(fullPath).base,
                                         'url': `${getURLProtocol()}://${config.config.server.domain}${getURLPort(config.config.server.port)}/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}/${pathParts[3]}/${pathParts[4]}/${pathParts[5]}?source=1&signature=${signature.signature}&iv=${signature.iv}`,
-                                        'provider_name': `${pathParts[4]}/${pathParts[3]}/${pathParts[2]} stock`,
+                                        'provider_name': `${pathParts[4]}/${pathParts[3]}/${pathParts[2]} ${pathParts[1]} stock`,
                                         'provider_url': `${getURLProtocol()}://${config.config.server.domain}${getURLPort(config.config.server.port)}/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}/${pathParts[3]}/${pathParts[4]}`,
                                         'cache_age': 0
                                     }
@@ -111,7 +111,7 @@ router.get(`/${config.config.server.rootDir}/:category`, async (req, res) => {
                                         'height': data.streams[0].height,
                                         'title': path.parse(fullPath).base,
                                         'url': `${getURLProtocol()}://${config.config.server.domain}${getURLPort(config.config.server.port)}/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}/${pathParts[3]}/${pathParts[4]}/${pathParts[5]}?source=1&signature=${signature.signature}&iv=${signature.iv}`,
-                                        'provider_name': `Stock ${pathParts[4]}/${pathParts[3]}/${pathParts[2]}`,
+                                        'provider_name': `${pathParts[4]}/${pathParts[3]}/${pathParts[2]} ${pathParts[1]} stock`,
                                         'provider_url': `${getURLProtocol()}://${config.config.server.domain}${getURLPort(config.config.server.port)}/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}/${pathParts[3]}/${pathParts[4]}`,
                                         'cache_age': 0
                                     }
