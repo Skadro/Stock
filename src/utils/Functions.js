@@ -384,15 +384,7 @@ function serverSetup() {
                 });
             }
             Storage_1.server.app.use((_req, res, next) => {
-                if (Storage_1.server.server) {
-                    if (!Storage_1.server.server.listening) {
-                        res.status(503).end();
-                        return;
-                    }
-                }
-                next();
-            }, (_req, res, next) => {
-                res.set('Cache-Control', 'private, no-cache, no-store, must-revalidate, max-age=0');
+                res.set('Cache-Control', 'private, no-cache, no-store, must-revalidate, proxy-revalidate, max-age=0');
                 res.set('Expires', 'Mon, 01 Jan 1990 00:00:00 GMT');
                 res.set('Pragma', 'no-cache');
                 next();
