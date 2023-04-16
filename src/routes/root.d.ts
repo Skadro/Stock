@@ -4,6 +4,8 @@ import { Router } from 'express';
  *
  * `/`
  *
+ * `/robots.txt`
+ *
  * `/${config.config.server.rootDir}`
  */
 declare const router: Router;

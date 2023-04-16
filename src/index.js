@@ -20,5 +20,6 @@ if (process.env.NODE_ENV === 'development') {
     process.on('uncaughtException', error => console.log(error));
     process.on('unhandledRejection', error => console.log(error));
 }
+(0, Functions_1.commandHandler)();
 Storage_1.server.app = (0, express_1.default)();
 (0, Functions_1.serverSetup)();

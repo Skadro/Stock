@@ -49,7 +49,8 @@ router.get(`/${Storage_1.config.config.server.rootDir}/:category/:year/:month/:d
                     }
                     return {
                         url: `/${Storage_1.config.config.server.rootDir}/${req.params.category}/${req.params.year}/${req.params.month}/${req.params.day}/${file}`,
-                        path: `/${Storage_1.config.config.server.rootDir}/${req.params.category}/${req.params.year}/${req.params.month}/${req.params.day}/${file}?source=1&signature=${signature.signature}&iv=${signature.iv}`, filename: path_1.default.parse(`${fullPath}/${file}`).base,
+                        source: `/${Storage_1.config.config.server.rootDir}/${req.params.category}/${req.params.year}/${req.params.month}/${req.params.day}/${file}?source=1&signature=${signature.signature}&iv=${signature.iv}`,
+                        filename: path_1.default.parse(`${fullPath}/${file}`).base,
                         type: { mediaType: (/^\.(apng|avif|bmp|gif|ico|jpe|jpeg|jpg|png|webp)$/i.test(path_1.default.parse(`${req.params.day}/${file}`).ext)) ? 'image' : (/^\.(mp4|webm)$/i.test(path_1.default.parse(`${req.params.day}/${file}`).ext)) ? 'video' : null, contentType: mime_1.default.getType(path_1.default.parse(`${req.params.day}/${file}`).ext) }
                     };
                 }

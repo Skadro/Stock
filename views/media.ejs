@@ -17,6 +17,7 @@
         <% } else if (meta.mediaType==='video' ) { %>
             <meta name="viewport" content="width=device-width">
             <% } %>
+                <meta name="robots" content="noindex, nofollow">
                 <meta name="google" content="nositelinkssearchbox" />
                 <link rel="alternate" type="application/json+oembed" href="<%= meta.oEmbed %>"
                     title="<%= meta.filename %>" />

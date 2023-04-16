@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 
 import { server } from './utils/Storage';
-import { serverSetup } from './utils/Functions';
+import { commandHandler, serverSetup } from './utils/Functions';
 
 dotenv.config();
 
@@ -13,6 +13,8 @@ if (process.env.NODE_ENV === 'development') {
     process.on('uncaughtException', error => console.log(error));
     process.on('unhandledRejection', error => console.log(error));
 }
+
+commandHandler();
 
 server.app = express();
 serverSetup();

@@ -3,14 +3,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getURLPort = exports.getURLProtocol = exports.sendForbidden = exports.changeMaxFilesPerDay = exports.changeFilesPerPage = exports.changeSignatureExpiry = exports.changeHeadersTimeout = exports.changeRequestTimeout = exports.changeKeepAliveTimeout = exports.changeSocketTimeout = exports.changeDir = exports.changePort = exports.changeDomain = exports.addCategory = exports.stopServer = exports.serverSetup = exports.checkDifference = exports.decryptSignature = exports.generateSignature = exports.generateKey = exports.isInteger = exports.createDate = exports.formatDate = exports.commandPrompt = void 0;
+exports.getURLPort = exports.getURLProtocol = exports.sendForbidden = exports.changeMaxFilesPerDay = exports.changeFilesPerPage = exports.changeSignatureExpiry = exports.changeHeadersTimeout = exports.changeRequestTimeout = exports.changeKeepAliveTimeout = exports.changeSocketTimeout = exports.changeDir = exports.changePort = exports.changeDomain = exports.addCategory = exports.stopServer = exports.serverSetup = exports.checkDifference = exports.decryptSignature = exports.generateSignature = exports.generateKey = exports.isInteger = exports.createDate = exports.formatDate = exports.commandPrompt = exports.commandHandler = void 0;
 // External libs
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
-const express_1 = __importDefault(require("express"));
+const promises_1 = require("timers/promises");
 const http_1 = __importDefault(require("http"));
 const https_1 = __importDefault(require("https"));
 const cors_1 = __importDefault(require("cors"));
+const helmet_1 = __importDefault(require("helmet"));
 const compression_1 = __importDefault(require("compression"));
 const crypto_1 = __importDefault(require("crypto"));
 const readline_1 = __importDefault(require("readline"));
@@ -28,186 +29,68 @@ const filename_1 = __importDefault(require("../routes/filename"));
 const Storage_1 = require("./Storage");
 var cmdPrompt = false;
 /**
+ * The command prompt command handler
+ * @function
+ * @returns {void}
+ */
+function commandHandler() {
+    try {
+        const commandFiles = fs_1.default.readdirSync(path_1.default.resolve('./src/commands'), 'utf8')
+            .filter((command) => fs_1.default.lstatSync(path_1.default.resolve(`./src/commands/${command}`)).isFile() && path_1.default.parse(path_1.default.resolve(`./src/commands/${command}`)).ext === path_1.default.parse(`${__dirname}/${__filename}`).ext);
+        Storage_1.commands.clear();
+        for (const command of commandFiles) {
+            const commandObj = require(path_1.default.resolve(`./src/commands/${command}`)).default;
+            if (commandObj) {
+                Storage_1.commands.set(commandObj.aliases.concat(commandObj.name), commandObj);
+            }
+        }
+    }
+    catch (err) {
+        throw err;
+    }
+}
+exports.commandHandler = commandHandler;
+/**
  * A command prompt within the application that can be used to perform a variety of tasks
  * @function
  * @returns {Promise<void>}
  */
 async function commandPrompt() {
-    rl.question('Command: ', async (command) => {
+    while (true) {
+        let answer = await new Promise((resolve) => {
+            rl.question('Command: ', (input) => {
+                resolve(input);
+            });
+        });
         try {
-            let args = command.slice(0).split(/ +/);
+            let args = answer.slice(0).split(/ +/);
             let cmd = args.shift();
             if (cmd) {
                 cmd = cmd.toLowerCase();
-                switch (cmd) {
-                    case 'reload_config':
-                    case 'reload_cfg':
-                        Storage_1.config.reload();
-                        break;
-                    case 'stop':
-                    case 'shutdown':
-                        stopServer();
-                        process.exit(0);
-                    case 'restart_server':
-                    case 'restart':
-                        stopServer();
-                        Storage_1.server.app = (0, express_1.default)();
-                        serverSetup();
-                        break;
-                    case 'createtoday':
-                        await createDate(formatDate(new Date(Date.now()))).then((i) => {
-                            console.log(`Created today\'s folders for ${i} category(-ies)`);
-                            Storage_1.config.reload();
-                        }).catch((err) => {
-                            console.log(err);
-                        });
-                        break;
-                    case 'get_connections':
-                        if (Storage_1.server.server) {
-                            Storage_1.server.server.getConnections((err, count) => {
-                                if (err) {
-                                    console.log(err);
-                                    return;
-                                }
-                                console.log(`Current connections: ${count}`);
-                            });
-                        }
-                        break;
-                    case 'generate_key':
-                    case 'regenerate_key':
-                        generateKey();
-                        break;
-                    case 'add_category':
-                    case 'category':
-                        if (!args[0]) {
-                            console.log('You must provide the category name');
+                let commandToExecute = undefined;
+                if (Storage_1.commands.size > 0) {
+                    for (let [names, command] of Storage_1.commands.entries()) {
+                        if (names.includes(cmd)) {
+                            commandToExecute = command;
                             break;
                         }
-                        if (/[\\/:*?"<>|]/ig.test(args[0])) {
-                            console.log('The category name must not contain the following characters:\n\\ / : * ? " < > |');
-                            return;
-                        }
-                        addCategory(args[0]);
-                        break;
-                    case 'change_domain':
-                        if (!args[0]) {
-                            console.log('You must provide the domain name');
-                            break;
-                        }
-                        changeDomain(args[0]);
-                        break;
-                    case 'change_port':
-                        if (!args[0]) {
-                            console.log('You must provide the port');
-                            break;
-                        }
-                        if (!isInteger(args[0])) {
-                            console.log('The port must be a positive integer');
-                            break;
-                        }
-                        changePort(parseInt(args[0]));
-                        break;
-                    case 'change_dir':
-                        if (!args[0]) {
-                            console.log('You must provide the directory name');
-                            break;
-                        }
-                        changeDir(args[0]);
-                        break;
-                    case 'change_sockettimeout':
-                    case 'change_socket':
-                        if (!args[0]) {
-                            console.log('You must provide the socket timeout value (in milliseconds)');
-                            break;
-                        }
-                        if (!isInteger(args[0])) {
-                            console.log('The socket timeout value must be a positive integer');
-                            break;
-                        }
-                        changeSocketTimeout(parseInt(args[0]));
-                        break;
-                    case 'change_keepalivetimeout':
-                    case 'change_keepalive':
-                        if (!args[0]) {
-                            console.log('You must provide the keep-alive timeout value (in milliseconds)');
-                            break;
-                        }
-                        if (!isInteger(args[0])) {
-                            console.log('The keep-alive timeout value must be a positive integer');
-                            break;
-                        }
-                        changeKeepAliveTimeout(parseInt(args[0]));
-                        break;
-                    case 'change_requesttimeout':
-                    case 'change_request':
-                        if (!args[0]) {
-                            console.log('You must provide the request timeout value (in milliseconds)');
-                            break;
-                        }
-                        if (!isInteger(args[0])) {
-                            console.log('The request timeout value must be a positive integer');
-                            break;
-                        }
-                        changeRequestTimeout(parseInt(args[0]));
-                        break;
-                    case 'change_headerstimeout':
-                    case 'change_headers':
-                        if (!args[0]) {
-                            console.log('You must provide the headers timeout value (in milliseconds)');
-                            break;
-                        }
-                        if (!isInteger(args[0])) {
-                            console.log('The headers timeout value must be a positive integer');
-                            break;
-                        }
-                        changeHeadersTimeout(parseInt(args[0]));
-                        break;
-                    case 'change_sigexpiry':
-                    case 'change_expiry':
-                        if (!args[0]) {
-                            console.log('You must provide the expiry time (in seconds)');
-                            break;
-                        }
-                        if (!isInteger(args[0])) {
-                            console.log('The expiry time must be a positive integer');
-                            break;
-                        }
-                        changeSignatureExpiry(parseInt(args[0]));
-                        break;
-                    case 'change_filesperpage':
-                    case 'change_pages':
-                        if (!args[0]) {
-                            console.log('You must provide the number of files per page');
-                            break;
-                        }
-                        if (!isInteger(args[0])) {
-                            console.log('The files per page value must be a positive integer');
-                            break;
-                        }
-                        changeFilesPerPage(parseInt(args[0]));
-                        break;
-                    case 'change_maxfilesperday':
-                    case 'change_maxfiles':
-                        if (!args[0]) {
-                            console.log('You must provide the number of files per day');
-                            break;
-                        }
-                        if (!isInteger(args[0])) {
-                            console.log('The files per day value must be a positive integer');
-                            break;
-                        }
-                        changeMaxFilesPerDay(parseInt(args[0]));
-                        break;
-                    default:
-                        commandPrompt();
+                    }
                 }
+                else {
+                    throw 'There are no commands available';
+                }
+                if (commandToExecute)
+                    commandToExecute.execute(args);
+                else
+                    throw 'Invalid command';
+                await (0, promises_1.setTimeout)(1000);
             }
-            setTimeout(() => commandPrompt(), 1000);
         }
         catch (err) {
             console.log(err);
+            await (0, promises_1.setTimeout)(1000);
         }
-    });
+    }
 }
 exports.commandPrompt = commandPrompt;
 /**
@@ -383,14 +266,44 @@ function serverSetup() {
                     next();
                 });
             }
-            Storage_1.server.app.use((_req, res, next) => {
+            Storage_1.server.app.use((0, cors_1.default)(), (0, helmet_1.default)({
+                contentSecurityPolicy: {
+                    useDefaults: false,
+                    reportOnly: false,
+                    directives: {
+                        'default-src': ["'self'"],
+                        'base-uri': ["'self'"],
+                        'font-src': ["'self'", 'https:', 'data:'],
+                        'form-action': ["'self'"],
+                        'frame-ancestors': ["'self'"],
+                        'img-src': ["'self'", 'data:'],
+                        'object-src': ["'none'"],
+                        'script-src': ["'self'"],
+                        'script-src-attr': ["'none'"],
+                        'style-src': ["'self'", 'https:'],
+                        ...(process.env.TLS_KEY && process.env.TLS_CERT ? { 'upgrade-insecure-requests': [] } : {})
+                    }
+                },
+                crossOriginEmbedderPolicy: { policy: 'require-corp' },
+                crossOriginOpenerPolicy: (process.env.TLS_KEY && process.env.TLS_CERT) ? { policy: 'same-origin' } : false,
+                crossOriginResourcePolicy: { policy: 'same-origin' },
+                dnsPrefetchControl: { allow: false },
+                frameguard: { action: 'sameorigin' },
+                hidePoweredBy: true,
+                hsts: (process.env.TLS_KEY && process.env.TLS_CERT) ? true : false,
+                ieNoOpen: true,
+                noSniff: true,
+                originAgentCluster: false,
+                permittedCrossDomainPolicies: { permittedPolicies: 'none' },
+                referrerPolicy: { policy: 'no-referrer' },
+                xssFilter: false
+            }), (_req, res, next) => {
+                res.set('Origin-Agent-Cluster', `${getURLProtocol()}://${Storage_1.config.config.server.domain}${getURLPort(Storage_1.config.config.server.port)}`);
                 res.set('Cache-Control', 'private, no-cache, no-store, must-revalidate, proxy-revalidate, max-age=0');
                 res.set('Expires', 'Mon, 01 Jan 1990 00:00:00 GMT');
                 res.set('Pragma', 'no-cache');
                 next();
-            }, (0, cors_1.default)(), (0, compression_1.default)());
-            Storage_1.server.app.use(root_1.default, category_1.default, year_1.default, month_1.default, day_1.default, filename_1.default);
-            Storage_1.server.app.use((_req, res, _next) => {
+            }, (0, compression_1.default)(), root_1.default, category_1.default, year_1.default, month_1.default, day_1.default, filename_1.default, (_req, res, _next) => {
                 res.status(404).end();
             });
             if (process.env.TLS_KEY && process.env.TLS_CERT) {
@@ -457,9 +370,18 @@ exports.stopServer = stopServer;
  * @returns {void}
  */
 function addCategory(name) {
-    Storage_1.config.config.categories.push(name);
-    Storage_1.config.rewrite();
-    console.log(`Category \"${name}\" has been created. You need to use the \"createtoday\" command to create its folder`);
+    if (!Storage_1.config.config.categories.includes(name)) {
+        if (/[\\/:*?"<>|]/ig.test(name)) {
+            console.log('The category name must not contain the following characters:\n\\ / : * ? " < > |');
+            return;
+        }
+        Storage_1.config.config.categories.push(name);
+        Storage_1.config.rewrite();
+        console.log(`Category \"${name}\" has been created. You need to use the \"createtoday\" command to create its folder`);
+    }
+    else {
+        console.log(`A category named \"${name}\" already exists`);
+    }
 }
 exports.addCategory = addCategory;
 /**
@@ -471,7 +393,7 @@ exports.addCategory = addCategory;
 function changeDomain(domain) {
     Storage_1.config.config.server.domain = domain;
     Storage_1.config.rewrite();
-    console.log('Domain changed successfully. You may need to restart the bot for the changes to take effect');
+    console.log('Domain changed successfully. You may need to restart the server for the changes to take effect');
 }
 exports.changeDomain = changeDomain;
 /**
@@ -483,7 +405,7 @@ exports.changeDomain = changeDomain;
 function changePort(port) {
     Storage_1.config.config.server.port = port;
     Storage_1.config.rewrite();
-    console.log('Port changed successfully. You need to restart the bot for the changes to take effect');
+    console.log('Port changed successfully. You need to restart the server for the changes to take effect');
 }
 exports.changePort = changePort;
 /**
@@ -495,7 +417,7 @@ exports.changePort = changePort;
 function changeDir(dirName) {
     Storage_1.config.config.server.rootDir = dirName;
     Storage_1.config.rewrite();
-    console.log('Directory changed successfully. You need to restart the bot for the changes to take effect. You will also need to run the \"createtoday\" command to create the new folder');
+    console.log('Directory changed successfully. You need to restart the server for the changes to take effect. You will also need to run the \"createtoday\" command to create the new folder');
 }
 exports.changeDir = changeDir;
 /**

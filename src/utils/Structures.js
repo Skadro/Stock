@@ -59,9 +59,9 @@ class Config {
         return false;
     }
     /**
-     * Rewrites the `config.json` from the stored `config` object or the an `newConfig` object (if defined)
+     * Rewrites the `config.json` from the stored `config` object or the a `newConfig` object (if defined)
      * @function
-     * @param newConfig An `ConfigObject` from where to rewrite the config file
+     * @param newConfig A `ConfigObject` from where to rewrite the config file
      * @returns {boolean} Whether the write task was successful or not
      */
     rewrite(newConfig) {

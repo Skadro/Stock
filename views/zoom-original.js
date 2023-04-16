@@ -1,6 +1,6 @@
 "use strict";
 
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', () => {
     const image = document.getElementsByTagName('img')[0];
     const container = document.getElementById('container');
     if (!container) return;

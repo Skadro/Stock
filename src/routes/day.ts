@@ -44,9 +44,10 @@ router.get(`/${config.config.server.rootDir}/:category/:year/:month/:day`, (req,
 
                     return {
                         url: `/${config.config.server.rootDir}/${req.params.category}/${req.params.year}/${req.params.month}/${req.params.day}/${file}`,
-                        path: `/${config.config.server.rootDir}/${req.params.category}/${req.params.year}/${req.params.month}/${req.params.day}/${file}?source=1&signature=${signature.signature}&iv=${signature.iv}`, filename: path.parse(`${fullPath}/${file}`).base,
+                        source: `/${config.config.server.rootDir}/${req.params.category}/${req.params.year}/${req.params.month}/${req.params.day}/${file}?source=1&signature=${signature.signature}&iv=${signature.iv}`,
+                        filename: path.parse(`${fullPath}/${file}`).base,
                         type: { mediaType: (/^\.(apng|avif|bmp|gif|ico|jpe|jpeg|jpg|png|webp)$/i.test(path.parse(`${req.params.day}/${file}`).ext)) ? 'image' : (/^\.(mp4|webm)$/i.test(path.parse(`${req.params.day}/${file}`).ext)) ? 'video' : null, contentType: mime.getType(path.parse(`${req.params.day}/${file}`).ext) }
-                    }
+                    } as StockFile
                 } catch (err) {
                     throw err;
                 }

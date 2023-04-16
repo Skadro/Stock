@@ -1,10 +1,12 @@
 // External libs
 import fs from 'fs';
 import path from 'path';
-import express, { Response } from 'express';
+import { setTimeout } from 'timers/promises';
+import { Response } from 'express';
 import http from 'http';
 import https from 'https';
 import cors from 'cors';
+import helmet from 'helmet';
 import compression from 'compression';
 import crypto from 'crypto';
 import readline from 'readline';
@@ -22,10 +24,34 @@ import day from '../routes/day';
 import filename from '../routes/filename';
 
 // Internal libs
-import { EncryptedSignature, FormattedDate } from './Structures';
-import { server, config } from './Storage';
+import { Command, EncryptedSignature, FormattedDate } from './Structures';
+import { server, config, commands } from './Storage';
 
 var cmdPrompt: boolean = false;
+
+/**
+ * The command prompt command handler
+ * @function
+ * @returns {void}
+ */
+export function commandHandler(): void {
+    try {
+        const commandFiles: string[] = fs.readdirSync(path.resolve('./src/commands'), 'utf8')
+            .filter((command) => fs.lstatSync(path.resolve(`./src/commands/${command}`)).isFile() && path.parse(path.resolve(`./src/commands/${command}`)).ext === path.parse(`${__dirname}/${__filename}`).ext);
+
+        commands.clear();
+
+        for (const command of commandFiles) {
+            const commandObj: Command | null | undefined = require(path.resolve(`./src/commands/${command}`)).default;
+
+            if (commandObj) {
+                commands.set(commandObj.aliases.concat(commandObj.name), commandObj);
+            }
+        }
+    } catch (err) {
+        throw err;
+    }
+}
 
 /**
  * A command prompt within the application that can be used to perform a variety of tasks
@@ -33,151 +59,42 @@ var cmdPrompt: boolean = false;
  * @returns {Promise<void>}
  */
 export async function commandPrompt(): Promise<void> {
-    rl.question('Command: ', async (command) => {
+    while (true) {
+        let answer: string = await new Promise<string>((resolve) => {
+            rl.question('Command: ', (input) => {
+                resolve(input);
+            });
+        });
+
         try {
-            let args = command.slice(0).split(/ +/);
-            let cmd = args.shift();
+            let args: string[] = answer.slice(0).split(/ +/);
+            let cmd: string | undefined = args.shift();
 
             if (cmd) {
                 cmd = cmd.toLowerCase();
-                switch (cmd) {
-                    case 'reload_config':
-                    case 'reload_cfg':
-                        config.reload();
+                let commandToExecute: Command | undefined = undefined;
 
-                        break;
-                    case 'stop':
-                    case 'shutdown':
-                        stopServer();
-
-                        process.exit(0);
-                    case 'restart_server':
-                    case 'restart':
-                        stopServer();
-                        server.app = express();
-                        serverSetup();
-
-                        break;
-                    case 'createtoday':
-                        await createDate(formatDate(new Date(Date.now()))).then((i) => {
-                            console.log(`Created today\'s folders for ${i} category(-ies)`);
-                            config.reload();
-                        }).catch((err) => {
-                            console.log(err);
-                        });
-
-                        break;
-                    case 'get_connections':
-                        if (server.server) {
-                            server.server.getConnections((err, count) => {
-                                if (err) {
-                                    console.log(err);
-                                    return;
-                                }
-
-                                console.log(`Current connections: ${count}`);
-                            });
+                if (commands.size > 0) {
+                    for (let [names, command] of commands.entries()) {
+                        if (names.includes(cmd)) {
+                            commandToExecute = command;
+                            break;
                         }
-
-                        break;
-                    case 'generate_key':
-                    case 'regenerate_key':
-                        generateKey();
-
-                        break;
-                    case 'add_category':
-                    case 'category':
-                        if (!args[0]) { console.log('You must provide the category name'); break; }
-                        if (/[\\/:*?"<>|]/ig.test(args[0])) { console.log('The category name must not contain the following characters:\n\\ / : * ? " < > |'); return; }
-
-                        addCategory(args[0]);
-
-                        break;
-                    case 'change_domain':
-                        if (!args[0]) { console.log('You must provide the domain name'); break; }
-
-                        changeDomain(args[0]);
-
-                        break;
-                    case 'change_port':
-                        if (!args[0]) { console.log('You must provide the port'); break; }
-                        if (!isInteger(args[0])) { console.log('The port must be a positive integer'); break; }
-
-                        changePort(parseInt(args[0]));
-
-                        break;
-                    case 'change_dir':
-                        if (!args[0]) { console.log('You must provide the directory name'); break; }
-
-                        changeDir(args[0]);
-
-                        break;
-                    case 'change_sockettimeout':
-                    case 'change_socket':
-                        if (!args[0]) { console.log('You must provide the socket timeout value (in milliseconds)'); break; }
-                        if (!isInteger(args[0])) { console.log('The socket timeout value must be a positive integer'); break; }
-
-                        changeSocketTimeout(parseInt(args[0]));
-
-                        break;
-                    case 'change_keepalivetimeout':
-                    case 'change_keepalive':
-                        if (!args[0]) { console.log('You must provide the keep-alive timeout value (in milliseconds)'); break; }
-                        if (!isInteger(args[0])) { console.log('The keep-alive timeout value must be a positive integer'); break; }
-
-                        changeKeepAliveTimeout(parseInt(args[0]));
-
-                        break;
-                    case 'change_requesttimeout':
-                    case 'change_request':
-                        if (!args[0]) { console.log('You must provide the request timeout value (in milliseconds)'); break; }
-                        if (!isInteger(args[0])) { console.log('The request timeout value must be a positive integer'); break; }
-
-                        changeRequestTimeout(parseInt(args[0]));
-
-                        break;
-                    case 'change_headerstimeout':
-                    case 'change_headers':
-                        if (!args[0]) { console.log('You must provide the headers timeout value (in milliseconds)'); break; }
-                        if (!isInteger(args[0])) { console.log('The headers timeout value must be a positive integer'); break; }
-
-                        changeHeadersTimeout(parseInt(args[0]));
-
-                        break;
-                    case 'change_sigexpiry':
-                    case 'change_expiry':
-                        if (!args[0]) { console.log('You must provide the expiry time (in seconds)'); break; }
-                        if (!isInteger(args[0])) { console.log('The expiry time must be a positive integer'); break; }
-
-                        changeSignatureExpiry(parseInt(args[0]));
-
-                        break;
-                    case 'change_filesperpage':
-                    case 'change_pages':
-                        if (!args[0]) { console.log('You must provide the number of files per page'); break; }
-                        if (!isInteger(args[0])) { console.log('The files per page value must be a positive integer'); break; }
-
-                        changeFilesPerPage(parseInt(args[0]));
-
-                        break;
-                    case 'change_maxfilesperday':
-                    case 'change_maxfiles':
-                        if (!args[0]) { console.log('You must provide the number of files per day'); break; }
-                        if (!isInteger(args[0])) { console.log('The files per day value must be a positive integer'); break; }
-
-                        changeMaxFilesPerDay(parseInt(args[0]));
-
-                        break;
-                    default:
-                        commandPrompt();
+                    }
+                } else {
+                    throw 'There are no commands available';
                 }
-            }
 
-            setTimeout(() => commandPrompt(), 1000);
+                if (commandToExecute) commandToExecute.execute(args);
+                else throw 'Invalid command';
+
+                await setTimeout(1000)
+            }
         } catch (err) {
             console.log(err);
+            await setTimeout(1000);
         }
-    });
+    }
 }
 
 /**
@@ -344,9 +261,9 @@ export function checkDifference(time: string | number, maxDifference: number): b
 export function serverSetup(): void {
     if (server.app) {
         try {
-            server.app!.disable('x-powered-by');
-            server.app!.set('view engine', 'ejs');
-            server.app!.set('views', path.resolve(`./views`));
+            server.app.disable('x-powered-by');
+            server.app.set('view engine', 'ejs');
+            server.app.set('views', path.resolve(`./views`));
 
             if (process.env.NODE_ENV === 'development') {
                 server.app.use((req, _res, next) => {
@@ -355,18 +272,47 @@ export function serverSetup(): void {
                 });
             }
 
-            server.app.use((_req, res, next) => {
+            server.app.use(cors(), helmet({
+                contentSecurityPolicy: {
+                    useDefaults: false,
+                    reportOnly: false,
+                    directives: {
+                        'default-src': ["'self'"],
+                        'base-uri': ["'self'"],
+                        'font-src': ["'self'", 'https:', 'data:'],
+                        'form-action': ["'self'"],
+                        'frame-ancestors': ["'self'"],
+                        'img-src': ["'self'", 'data:'],
+                        'object-src': ["'none'"],
+                        'script-src': ["'self'"],
+                        'script-src-attr': ["'none'"],
+                        'style-src': ["'self'", 'https:'],
+                        ...(process.env.TLS_KEY && process.env.TLS_CERT ? { 'upgrade-insecure-requests': [] } : {})
+                    }
+                },
+                crossOriginEmbedderPolicy: { policy: 'require-corp' },
+                crossOriginOpenerPolicy: (process.env.TLS_KEY && process.env.TLS_CERT) ? { policy: 'same-origin' } : false,
+                crossOriginResourcePolicy: { policy: 'same-origin' },
+                dnsPrefetchControl: { allow: false },
+                frameguard: { action: 'sameorigin' },
+                hidePoweredBy: true,
+                hsts: (process.env.TLS_KEY && process.env.TLS_CERT) ? true : false,
+                ieNoOpen: true,
+                noSniff: true,
+                originAgentCluster: false,
+                permittedCrossDomainPolicies: { permittedPolicies: 'none' },
+                referrerPolicy: { policy: 'no-referrer' },
+                xssFilter: false
+            }), (_req, res, next) => {
+                res.set('Origin-Agent-Cluster', `${getURLProtocol()}://${config.config.server.domain}${getURLPort(config.config.server.port)}`);
                 res.set('Cache-Control', 'private, no-cache, no-store, must-revalidate, proxy-revalidate, max-age=0');
                 res.set('Expires', 'Mon, 01 Jan 1990 00:00:00 GMT');
                 res.set('Pragma', 'no-cache');
                 next();
-            }, cors(), compression());
-
-            server.app.use(root, category, year, month, day, filename);
-
-            server.app.use((_req, res, _next) => {
-                res.status(404).end();
-            });
+            }, compression(),
+                root, category, year, month, day, filename, (_req, res, _next) => {
+                    res.status(404).end();
+                });
 
             if (process.env.TLS_KEY && process.env.TLS_CERT) {
                 server.server = https.createServer({ key: fs.readFileSync(path.resolve(process.env.TLS_KEY)), cert: fs.readFileSync(path.resolve(process.env.TLS_CERT)) }, server.app);
@@ -430,10 +376,16 @@ export function stopServer(): void {
  * @returns {void}
  */
 export function addCategory(name: string): void {
-    config.config.categories.push(name);
-    config.rewrite();
+    if (!config.config.categories.includes(name)) {
+        if (/[\\/:*?"<>|]/ig.test(name)) { console.log('The category name must not contain the following characters:\n\\ / : * ? " < > |'); return; }
 
-    console.log(`Category \"${name}\" has been created. You need to use the \"createtoday\" command to create its folder`);
+        config.config.categories.push(name);
+        config.rewrite();
+
+        console.log(`Category \"${name}\" has been created. You need to use the \"createtoday\" command to create its folder`);
+    } else {
+        console.log(`A category named \"${name}\" already exists`);
+    }
 }
 
 /**
@@ -446,7 +398,7 @@ export function changeDomain(domain: string): void {
     config.config.server.domain = domain;
     config.rewrite();
 
-    console.log('Domain changed successfully. You may need to restart the bot for the changes to take effect');
+    console.log('Domain changed successfully. You may need to restart the server for the changes to take effect');
 }
 
 /**
@@ -459,7 +411,7 @@ export function changePort(port: number): void {
     config.config.server.port = port;
     config.rewrite();
 
-    console.log('Port changed successfully. You need to restart the bot for the changes to take effect');
+    console.log('Port changed successfully. You need to restart the server for the changes to take effect');
 }
 
 /**
@@ -472,7 +424,7 @@ export function changeDir(dirName: string): void {
     config.config.server.rootDir = dirName;
     config.rewrite();
 
-    console.log('Directory changed successfully. You need to restart the bot for the changes to take effect. You will also need to run the \"createtoday\" command to create the new folder');
+    console.log('Directory changed successfully. You need to restart the server for the changes to take effect. You will also need to run the \"createtoday\" command to create the new folder');
 }
 
 /**

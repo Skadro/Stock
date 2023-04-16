@@ -2,6 +2,12 @@
 import { Response } from 'express';
 import { EncryptedSignature, FormattedDate } from './Structures';
 /**
+ * The command prompt command handler
+ * @function
+ * @returns {void}
+ */
+export declare function commandHandler(): void;
+/**
  * A command prompt within the application that can be used to perform a variety of tasks
  * @function
  * @returns {Promise<void>}

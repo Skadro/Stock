@@ -62,7 +62,8 @@
     "include": [
         "src/index.ts",
         "src/utils/**/*",
-        "src/routes/**/*"
+        "src/routes/**/*",
+        "src/commands/**/*"
     ],
     "exclude": [
         "node_modules",
