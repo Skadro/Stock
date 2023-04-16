@@ -30,7 +30,15 @@ router.get(`/${config.config.server.rootDir}/:category/:year/:month/:day/:filena
         });
 
         const fullPath = path.resolve(`./${config.config.server.rootDir}/${req.params.category}/${req.params.year}/${req.params.month}/${req.params.day}/${req.params.filename}`);
-        if (!fs.existsSync(fullPath)) { res.status(404).end(); return; }
+        if (!fs.existsSync(fullPath)) {
+            if (req.query.source && req.query.source.toString() === '1') {
+                sendForbidden(res);
+                return;
+            }
+
+            res.status(404).end();
+            return;
+        }
 
         const type = mime.getType(path.parse(fullPath).ext);
         const mediaType = (/^\.(apng|avif|bmp|gif|ico|jpe|jpeg|jpg|png|webp)$/i.test(path.parse(fullPath).ext)) ? 'image' : (/^\.(mp4|webm)$/i.test(path.parse(fullPath).ext)) ? 'video' : null;

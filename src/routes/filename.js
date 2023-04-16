@@ -33,6 +33,10 @@ router.get(`/${Storage_1.config.config.server.rootDir}/:category/:year/:month/:d
         });
         const fullPath = path_1.default.resolve(`./${Storage_1.config.config.server.rootDir}/${req.params.category}/${req.params.year}/${req.params.month}/${req.params.day}/${req.params.filename}`);
         if (!fs_1.default.existsSync(fullPath)) {
+            if (req.query.source && req.query.source.toString() === '1') {
+                (0, Functions_1.sendForbidden)(res);
+                return;
+            }
             res.status(404).end();
             return;
         }
