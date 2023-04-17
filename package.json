@@ -1,6 +1,6 @@
 {
   "name": "stock",
-  "version": "4.1.001",
+  "version": "4.1.002",
   "description": "A RESTful media cataloging web service",
   "main": "./src/index.ts",
   "scripts": {

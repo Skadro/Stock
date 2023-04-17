@@ -275,12 +275,12 @@ function serverSetup() {
                         'base-uri': ["'self'"],
                         'font-src': ["'self'", 'https:', 'data:'],
                         'form-action': ["'self'"],
-                        'frame-ancestors': ["'self'"],
+                        'frame-ancestors': ["*"],
                         'img-src': ["'self'", 'data:'],
                         'object-src': ["'none'"],
-                        'script-src': ["'self'"],
-                        'script-src-attr': ["'none'"],
-                        'style-src': ["'self'", 'https:'],
+                        'script-src': ["'self'", "'unsafe-inline'"],
+                        'script-src-attr': ["'none'", "'unsafe-inline'"],
+                        'style-src': ["'self'", 'https:', "'unsafe-inline'"],
                         ...(process.env.TLS_KEY && process.env.TLS_CERT ? { 'upgrade-insecure-requests': [] } : {})
                     }
                 },

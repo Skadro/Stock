@@ -9,6 +9,7 @@ const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
 const fluent_ffmpeg_1 = __importDefault(require("fluent-ffmpeg"));
 const querystring_1 = require("querystring");
+const mime_1 = __importDefault(require("mime"));
 // Internal libs
 const Storage_1 = require("../utils/Storage");
 const Functions_1 = require("../utils/Functions");
@@ -72,7 +73,8 @@ router.get(`/${Storage_1.config.config.server.rootDir}/:category`, async (req, r
                                 res.status(500).end();
                                 return;
                             }
-                            if (data.streams[0]) {
+                            const type = mime_1.default.getType(path_1.default.parse(fullPath).ext);
+                            if (data.streams[0] && type) {
                                 if (data.streams[0].width && data.streams[0].height) {
                                     const signature = (0, Functions_1.generateSignature)(`${Date.now()}|${path_1.default.parse(fullPath).base}`, Buffer.from(fs_1.default.readFileSync(path_1.default.resolve('./signature/key'), 'utf8'), 'hex'));
                                     if (!signature) {
@@ -85,6 +87,7 @@ router.get(`/${Storage_1.config.config.server.rootDir}/:category`, async (req, r
                                         'width': data.streams[0].width,
                                         'height': data.streams[0].height,
                                         'title': path_1.default.parse(fullPath).base,
+                                        'html': `<iframe src="${(0, Functions_1.getURLProtocol)()}://${Storage_1.config.config.server.domain}${(0, Functions_1.getURLPort)(Storage_1.config.config.server.port)}/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}/${pathParts[3]}/${pathParts[4]}/${pathParts[5]}?source=1&signature=${signature.signature}&iv=${signature.iv}" type="${type}" width="${data.streams[0].width}" height="${data.streams[0].height}" title="${pathParts[5]}" name="${pathParts[5]}"</iframe>`,
                                         'url': `${(0, Functions_1.getURLProtocol)()}://${Storage_1.config.config.server.domain}${(0, Functions_1.getURLPort)(Storage_1.config.config.server.port)}/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}/${pathParts[3]}/${pathParts[4]}/${pathParts[5]}?source=1&signature=${signature.signature}&iv=${signature.iv}`,
                                         'provider_name': `${pathParts[4]}/${pathParts[3]}/${pathParts[2]} ${pathParts[1]} stock`,
                                         'provider_url': `${(0, Functions_1.getURLProtocol)()}://${Storage_1.config.config.server.domain}${(0, Functions_1.getURLPort)(Storage_1.config.config.server.port)}/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}/${pathParts[3]}/${pathParts[4]}`,
@@ -110,8 +113,9 @@ router.get(`/${Storage_1.config.config.server.rootDir}/:category`, async (req, r
                                 res.status(500).end();
                                 return;
                             }
-                            if (data.streams[0]) {
-                                if (data.streams[0].width && data.streams[0].height) {
+                            const type = mime_1.default.getType(path_1.default.parse(fullPath).ext);
+                            if (data.streams[0] && type) {
+                                if (data.streams[0].width && data.streams[0].height && data.streams[0].duration) {
                                     const signature = (0, Functions_1.generateSignature)(`${Date.now()}|${path_1.default.parse(fullPath).base}`, Buffer.from(fs_1.default.readFileSync(path_1.default.resolve('./signature/key'), 'utf8'), 'hex'));
                                     if (!signature) {
                                         res.status(404).end();
@@ -122,8 +126,10 @@ router.get(`/${Storage_1.config.config.server.rootDir}/:category`, async (req, r
                                         'type': 'video',
                                         'width': data.streams[0].width,
                                         'height': data.streams[0].height,
-                                        'title': path_1.default.parse(fullPath).base,
+                                        'duration': Math.floor(Number(data.streams[0].duration)),
                                         'url': `${(0, Functions_1.getURLProtocol)()}://${Storage_1.config.config.server.domain}${(0, Functions_1.getURLPort)(Storage_1.config.config.server.port)}/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}/${pathParts[3]}/${pathParts[4]}/${pathParts[5]}?source=1&signature=${signature.signature}&iv=${signature.iv}`,
+                                        'title': path_1.default.parse(fullPath).base,
+                                        'html': `<iframe src="${(0, Functions_1.getURLProtocol)()}://${Storage_1.config.config.server.domain}${(0, Functions_1.getURLPort)(Storage_1.config.config.server.port)}/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}/${pathParts[3]}/${pathParts[4]}/${pathParts[5]}?source=1&signature=${signature.signature}&iv=${signature.iv}" type="${type}" width="${data.streams[0].width}" height="${data.streams[0].height}" title="${pathParts[5]}" name="${pathParts[5]}" allowfullscreen</iframe>`,
                                         'provider_name': `${pathParts[4]}/${pathParts[3]}/${pathParts[2]} ${pathParts[1]} stock`,
                                         'provider_url': `${(0, Functions_1.getURLProtocol)()}://${Storage_1.config.config.server.domain}${(0, Functions_1.getURLPort)(Storage_1.config.config.server.port)}/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}/${pathParts[3]}/${pathParts[4]}`,
                                         'cache_age': 0

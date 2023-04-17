@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import ffmpeg from 'fluent-ffmpeg';
 import { unescape } from 'querystring';
+import mime from 'mime';
 
 // Internal libs
 import { config } from '../utils/Storage';
@@ -65,7 +66,9 @@ router.get(`/${config.config.server.rootDir}/:category`, async (req, res) => {
                                 return;
                             }
 
-                            if (data.streams[0]) {
+                            const type = mime.getType(path.parse(fullPath).ext);
+
+                            if (data.streams[0] && type) {
                                 if (data.streams[0].width && data.streams[0].height) {
                                     const signature = generateSignature(`${Date.now()}|${path.parse(fullPath).base}`, Buffer.from(fs.readFileSync(path.resolve('./signature/key'), 'utf8'), 'hex'))
                                     if (!signature) { res.status(404).end(); return; }
@@ -76,6 +79,7 @@ router.get(`/${config.config.server.rootDir}/:category`, async (req, res) => {
                                         'width': data.streams[0].width,
                                         'height': data.streams[0].height,
                                         'title': path.parse(fullPath).base,
+                                        'html': `<iframe src="${getURLProtocol()}://${config.config.server.domain}${getURLPort(config.config.server.port)}/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}/${pathParts[3]}/${pathParts[4]}/${pathParts[5]}?source=1&signature=${signature.signature}&iv=${signature.iv}" type="${type}" width="${data.streams[0].width}" height="${data.streams[0].height}" title="${pathParts[5]}" name="${pathParts[5]}"</iframe>`,
                                         'url': `${getURLProtocol()}://${config.config.server.domain}${getURLPort(config.config.server.port)}/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}/${pathParts[3]}/${pathParts[4]}/${pathParts[5]}?source=1&signature=${signature.signature}&iv=${signature.iv}`,
                                         'provider_name': `${pathParts[4]}/${pathParts[3]}/${pathParts[2]} ${pathParts[1]} stock`,
                                         'provider_url': `${getURLProtocol()}://${config.config.server.domain}${getURLPort(config.config.server.port)}/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}/${pathParts[3]}/${pathParts[4]}`,
@@ -99,8 +103,10 @@ router.get(`/${config.config.server.rootDir}/:category`, async (req, res) => {
                                 return;
                             }
 
-                            if (data.streams[0]) {
-                                if (data.streams[0].width && data.streams[0].height) {
+                            const type = mime.getType(path.parse(fullPath).ext);
+
+                            if (data.streams[0] && type) {
+                                if (data.streams[0].width && data.streams[0].height && data.streams[0].duration) {
                                     const signature = generateSignature(`${Date.now()}|${path.parse(fullPath).base}`, Buffer.from(fs.readFileSync(path.resolve('./signature/key'), 'utf8'), 'hex'))
                                     if (!signature) { res.status(404).end(); return; }
 
@@ -109,8 +115,10 @@ router.get(`/${config.config.server.rootDir}/:category`, async (req, res) => {
                                         'type': 'video',
                                         'width': data.streams[0].width,
                                         'height': data.streams[0].height,
-                                        'title': path.parse(fullPath).base,
+                                        'duration': Math.floor(Number(data.streams[0].duration)),
                                         'url': `${getURLProtocol()}://${config.config.server.domain}${getURLPort(config.config.server.port)}/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}/${pathParts[3]}/${pathParts[4]}/${pathParts[5]}?source=1&signature=${signature.signature}&iv=${signature.iv}`,
+                                        'title': path.parse(fullPath).base,
+                                        'html': `<iframe src="${getURLProtocol()}://${config.config.server.domain}${getURLPort(config.config.server.port)}/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}/${pathParts[3]}/${pathParts[4]}/${pathParts[5]}?source=1&signature=${signature.signature}&iv=${signature.iv}" type="${type}" width="${data.streams[0].width}" height="${data.streams[0].height}" title="${pathParts[5]}" name="${pathParts[5]}" allowfullscreen</iframe>`,
                                         'provider_name': `${pathParts[4]}/${pathParts[3]}/${pathParts[2]} ${pathParts[1]} stock`,
                                         'provider_url': `${getURLProtocol()}://${config.config.server.domain}${getURLPort(config.config.server.port)}/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}/${pathParts[3]}/${pathParts[4]}`,
                                         'cache_age': 0
