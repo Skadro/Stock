@@ -1,21 +1,24 @@
 body {
     margin: 0;
     padding: 0;
-    background-color: lawngreen;
+    background-color: rgb(117, 52, 223);
 }
 
 .title {
     position: static;
     text-align: center;
+    overflow: auto;
+    text-overflow: ellipsis;
     border: 10px;
     font-family: Verdana, Geneva, Tahoma, sans-serif;
-    color: darkblue;
+    color: rgb(238, 32, 32);
 }
 
 #container {
     display: flex;
     flex-wrap: wrap;
     justify-content: space-between;
+    gap: 1rem 1rem;
     overflow: auto;
 }
 
@@ -24,7 +27,19 @@ body {
     min-width: 10%;
     max-height: 100%;
     margin: auto auto;
-    border: 10px solid #ccc;
+    border: 10px ridge #ccc;
+    border-radius: 5px;
+    align-items: center;
+    text-align: center;
+    overflow: auto;
+    text-overflow: ellipsis;
+}
+
+.block:hover {
+    border: 10px solid #333;
+    transition-delay: 20ms;
+    transition-duration: 200ms;
+    transform-style: flat;
 }
 
 .block img {
@@ -35,6 +50,16 @@ body {
     height: auto;
     border: 0;
     margin: 0 auto;
+}
+
+.block span {
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    font-size: xx-large;
+    text-align: center;
+    position: static;
+    text-decoration: solid;
+    overflow: auto;
+    text-overflow: ellipsis;
 }
 
 .block video {
@@ -51,25 +76,32 @@ body {
     display: flex;
     justify-content: center;
     margin-top: 20px;
+    overflow: auto;
+    text-overflow: ellipsis;
 }
 
 #footer span {
     display: inline-block;
     margin: 0 10px;
-    font-size: xx-large;
     color: #333;
+    font-size: xx-large;
+    overflow: auto;
+    text-overflow: ellipsis;
 }
 
 #footer a.page {
     display: block;
     font-size: xx-large;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    text-decoration: none;
+    overflow: auto;
+    text-overflow: ellipsis;
     margin: 0 10px;
     margin-bottom: 0%;
     padding: 5px 10px;
     background-color: aqua;
     border: 1px solid #ddd;
     color: #333;
-    text-decoration: none;
 }
 
 #footer a.page:hover,

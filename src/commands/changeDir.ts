@@ -12,9 +12,9 @@ export default {
     aliases: ['change_root', 'change_rootdir', 'dir', 'root'],
     async execute(args: string[]): Promise<void> {
         try {
-            if (!args[0]) { console.log('You must provide the directory name'); return; }
+            if (args.length === 0) { console.log('You must provide the directory name'); return; }
 
-            changeDir(args[0]);
+            changeDir(args.join(''));
         } catch (err) {
             throw err;
         }

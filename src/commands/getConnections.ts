@@ -9,7 +9,7 @@ import { server } from '../utils/Storage';
  */
 export default {
     name: 'get_connections',
-    aliases: ['connections'],
+    aliases: ['getconnections' ,'connections'],
     async execute(): Promise<void> {
         try {
             if (server.server) {

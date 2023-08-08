@@ -9,12 +9,12 @@ import { addCategory } from '../utils/Functions';
  */
 export default {
     name: 'add_category',
-    aliases: ['category'],
+    aliases: ['addcategory', 'category'],
     async execute(args: string[]): Promise<void> {
         try {
-            if (!args[0]) { console.log('You must provide the category name'); return; }
+            if (args.length === 0) { console.log('You must provide the category name'); return; }
 
-            addCategory(args[0]);
+            addCategory(args.join(''));
         } catch (err) {
             throw err;
         }

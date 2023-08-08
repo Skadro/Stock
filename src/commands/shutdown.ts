@@ -13,7 +13,6 @@ export default {
     async execute(): Promise<void> {
         try {
             stopServer();
-
             process.exit(0);
         } catch {
             process.exit(0);

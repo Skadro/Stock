@@ -27,16 +27,15 @@ router.get(`/${config.config.server.rootDir}/:category/:year`, (req, res) => {
 
         const fullPath = path.resolve(`./views/${req.params.year}`);
         const filename = path.parse(fullPath).base;
-        if (fs.existsSync(fullPath) && (filename === 'index.css' || filename === 'media.css' || filename === 'zoom.js' || filename === 'favicon.ico')) {
+        if (fs.existsSync(fullPath) && (filename === 'index.css' || filename === 'media.css' || filename === 'zoom.js' ||
+            filename === 'favicon.ico' || filename === 'stock.jpg' || filename === 'directory.png')) {
             res.status(200).sendFile(fullPath, (err) => {
                 if (err) {
                     if (process.env.NODE_ENV && process.env.NODE_ENV === 'development') console.log(err);
                     res.status(500).end();
                 }
             });
-        } else {
-            res.status(404).end();
-        }
+        } else res.status(404).end();
     } catch (err) {
         console.log(err);
         res.status(500).end();

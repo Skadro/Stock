@@ -2,25 +2,38 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8" />
     <title>
         <%= meta.pageTitle %>
     </title>
-    <link rel="stylesheet" type="text/css" href="<%= escape(stylesheet) %>">
-    <link rel="icon" type="image/x-icon" href="<%= escape(favicon) %>">
-    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <link rel="stylesheet" type="text/css" href="<%= escape(stylesheet) %>" />
+    <link rel="icon" type="image/x-icon" href="<%= escape(favicon) %>" />
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
     <meta name="application-name" content="Stock" />
     <meta name="author" content="Skadro" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <meta name="description" content="<%= meta.description %>">
-    <meta name="robots" content="noindex, nofollow">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+    <meta name="description" content="<%= meta.description %>" />
+    <meta name="robots" content="noindex, nofollow" />
     <meta name="google" content="nositelinkssearchbox" />
-    <meta property="og:url" content="<%= meta.url %>">
+    <link rel="alternate" type="application/json+oembed" href="<%= meta.oEmbed %>&format=json"
+        title="<%= meta.title %>" />
+    <link rel="alternate" type="text/xml+oembed" href="<%= meta.oEmbed %>&format=xml" title="<%= meta.title %>" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="<%= meta.siteName %>" />
     <meta property="og:title" content="<%= meta.pageTitle %>" />
-    <meta property="og:site_name" content="<%= meta.siteName %>">
-    <meta property="og:type" content="website">
     <meta property="og:description" content="<%= meta.description %>" />
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:url" content="<%= meta.url %>" />
+    <meta property="og:image" content="<%= meta.image %>" />
+    <% if (secured) { %>
+        <meta property="og:image:secure_url" content="<%= meta.image %>" />
+        <% } %>
+            <meta name="twitter:card" content="summary" />
+            <meta name="twitter:site"
+                content="@<%= meta.siteName.toLowerCase().replace(/[^a-zA-Z0-9_]|^\d+/g, '') %>" />
+            <meta name="twitter:title" content="<%= meta.pageTitle %>" />
+            <meta name="twitter:description" content="<%= meta.description %>" />
+            <meta name="twitter:image" content="<%= meta.image %>" />
+            <meta name="twitter:image:alt" content="<%= meta.siteName %>" />
 </head>
 
 <body>
@@ -34,24 +47,45 @@
         <% var numPages=Math.ceil(files.length / filesPerPage); %>
             <% var startIndex=(page - 1) * filesPerPage; %>
                 <% var endIndex=Math.min(startIndex + filesPerPage, files.length); %>
-                    <% for (var i=startIndex; i < endIndex; i++) { %>
-                        <% if (files[i].type.mediaType==='image' && files[i].type.contentType) { %>
-                            <div class="block">
-                                <a href="<%= files[i].url %>" aria-label="Go to <%= files[i].filename %>">
-                                    <img src="<%= files[i].source %>" alt="<%= files[i].filename %>">
-                                </a>
-                            </div>
-                            <% } else if (files[i].type.mediaType==='video' && files[i].type.contentType) { %>
+                    <% var dirs=0; %>
+                        <% if (page===1) { %>
+                            <% files.filter((file)=> file.type.mediaType === 'directory' && file.type.contentType
+                                ===
+                                'directory').forEach((directory) => { %>
                                 <div class="block">
-                                    <a href="<%= files[i].url %>" aria-label="Go to <%= files[i].filename %>">
-                                        <video aria-hidden="true" controls>
-                                            <source src="<%= files[i].source %>"
-                                                type="<%= files[i].type.contentType %>">
-                                        </video>
+                                    <a href="<%= directory.url %>" aria-label="Go to <%= directory.filename %>">
+                                        <img src="<%= directoryIcon %>" alt="<%= directory.filename %>">
+                                        <span>
+                                            <%= directory.filename %>
+                                        </span>
                                     </a>
                                 </div>
-                                <% } %>
-                                    <% } %>
+                                <% dirs++; %>
+                                    <% }); %>
+                                        <% } %>
+                                            <% for (var i=startIndex; i < endIndex - dirs; i++) { %>
+                                                <% if (files[i].type.mediaType==='image' && files[i].type.contentType) {
+                                                    %>
+                                                    <div class="block">
+                                                        <a href="<%= files[i].url %>"
+                                                            aria-label="Go to <%= files[i].filename %>">
+                                                            <img src="<%= files[i].source %>"
+                                                                alt="<%= files[i].filename %>">
+                                                        </a>
+                                                    </div>
+                                                    <% } else if (files[i].type.mediaType==='video' &&
+                                                        files[i].type.contentType) { %>
+                                                        <div class="block">
+                                                            <a href="<%= files[i].url %>"
+                                                                aria-label="Go to <%= files[i].filename %>">
+                                                                <video aria-hidden="true" controls>
+                                                                    <source src="<%= files[i].source %>"
+                                                                        type="<%= files[i].type.contentType %>">
+                                                                </video>
+                                                            </a>
+                                                        </div>
+                                                        <% } %>
+                                                            <% } %>
     </div>
     <br>
     <div id="footer">
@@ -60,8 +94,8 @@
                 <% for (var i=1; i <=numPages; i++) { %>
                     <% if (numPages> 10) { %>
                         <% if (i===1 || i===numPages || Math.abs(i - page) <=5) { %>
-                            <a href="?page=<%= i %>" class="page <%= i==page ? 'active' : '' %>"
-                                aria-label="Go to page <%= i %>">
+                            <a href="?page=<%= i %><%= adminPassword ? `&pass=${adminPassword}` : '' %>"
+                                class="page <%= i===page ? 'active' : '' %>" aria-label="Go to page <%= i %>">
                                 <%= i %>
                             </a>
                             <% } else if (i===page - 6) { %>
@@ -69,15 +103,15 @@
                                     <span>...</span>
                                     <% isDottedStart=true; %>
                                         <% } %>
-                                            <% } else if (i> page && Math.abs(page - numPages) >= 5) { %>
+                                            <% } else if (i===page + 6) { %>
                                                 <% if (!isDottedEnd) { %>
                                                     <span>...</span>
                                                     <% isDottedEnd=true; %>
                                                         <% } %>
                                                             <% } %>
                                                                 <% } else { %>
-                                                                    <a href="?page=<%= i %>"
-                                                                        class="page <%= i==page ? 'active' : '' %>"
+                                                                    <a href="?page=<%= i %><%= adminPassword ? `&pass=${adminPassword}` : '' %>"
+                                                                        class="page <%= i===page ? 'active' : '' %>"
                                                                         aria-label="Go to page <%= i %>">
                                                                         <%= i %>
                                                                     </a>

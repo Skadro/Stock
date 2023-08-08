@@ -61,7 +61,7 @@ export interface ServerConfig {
 }
 
 /**
- * The object model from the `config.json` file
+ * The object model for the `config.json` file
  * @interface
  */
 export interface ConfigObject {
@@ -79,6 +79,11 @@ export interface ConfigObject {
      * The number of files per day
      */
     maxFilesPerDay: number;
+
+    /**
+     * The admin password used for catalog administration
+     */
+    adminPassword: string;
 
     /**
      * The categories (and subcategories)
@@ -147,7 +152,7 @@ export interface StockFileType {
     /**
      * The type of media (`image` or `video`)
      */
-    mediaType: 'image' | 'video' | null;
+    mediaType: 'image' | 'video' | 'directory' | null;
 
     /**
      * The media MIME type
@@ -189,7 +194,7 @@ export class Config {
     /**
      * Configuration object
      */
-    config: ConfigObject = { server: { domain: 'localhost', port: 80, rootDir: 'stock', socketTimeout: 300000, keepAliveTimeout: 10000, requestTimeout: 30000, headersTimeout: 10000, signatureExpiry: 86400 }, filesPerPage: 30, maxFilesPerDay: 5000, categories: [] };
+    config: ConfigObject = { server: { domain: 'localhost', port: 80, rootDir: 'stock', socketTimeout: 300000, keepAliveTimeout: 10000, requestTimeout: 30000, headersTimeout: 10000, signatureExpiry: 86400 }, filesPerPage: 30, maxFilesPerDay: 5000, adminPassword: 'admin', categories: [] };
 
     /**
      * Configiration file path
@@ -201,7 +206,7 @@ export class Config {
      */
     constructor(configFilePath: string) {
         try {
-            const config: ConfigObject | null | undefined = JSON.parse(fs.readFileSync(configFilePath, 'utf8'));
+            const config: ConfigObject | null | undefined = JSON.parse(fs.readFileSync(configFilePath, 'utf-8'));
 
             if (config) {
                 this.config = config;
@@ -221,7 +226,7 @@ export class Config {
      */
     reload(): boolean {
         try {
-            const config: ConfigObject | null | undefined = JSON.parse(fs.readFileSync(this.configFilePath!, 'utf8'));
+            const config: ConfigObject | null | undefined = JSON.parse(fs.readFileSync(this.configFilePath!, 'utf-8'));
 
             if (config) {
                 this.config = config;
@@ -244,11 +249,11 @@ export class Config {
     rewrite(newConfig?: ConfigObject): boolean {
         try {
             if (newConfig) {
-                fs.writeFileSync(this.configFilePath!, JSON.stringify(newConfig, null, "\t"), 'utf8');
+                fs.writeFileSync(this.configFilePath!, JSON.stringify(newConfig, null, "\t"), 'utf-8');
                 this.config = newConfig;
                 return true;
             } else {
-                fs.writeFileSync(this.configFilePath!, JSON.stringify(this.config, null, "\t"), 'utf8');
+                fs.writeFileSync(this.configFilePath!, JSON.stringify(this.config, null, "\t"), 'utf-8');
                 return true;
             }
         } catch (err) {

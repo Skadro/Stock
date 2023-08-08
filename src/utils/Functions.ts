@@ -2,12 +2,13 @@
 import fs from 'fs';
 import path from 'path';
 import { setTimeout } from 'timers/promises';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import http from 'http';
 import https from 'https';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
+import uaParser from 'ua-parser-js';
 import crypto from 'crypto';
 import readline from 'readline';
 const rl: readline.Interface = readline.createInterface({
@@ -36,7 +37,7 @@ var cmdPrompt: boolean = false;
  */
 export function commandHandler(): void {
     try {
-        const commandFiles: string[] = fs.readdirSync(path.resolve('./src/commands'), 'utf8')
+        const commandFiles: string[] = fs.readdirSync(path.resolve('./src/commands'), 'utf-8')
             .filter((command) => fs.lstatSync(path.resolve(`./src/commands/${command}`)).isFile() && path.parse(path.resolve(`./src/commands/${command}`)).ext === path.parse(`${__dirname}/${__filename}`).ext);
 
         commands.clear();
@@ -44,7 +45,7 @@ export function commandHandler(): void {
         for (const command of commandFiles) {
             const commandObj: Command | null | undefined = require(path.resolve(`./src/commands/${command}`)).default;
 
-            if (commandObj) {
+            if (commandObj && typeof commandObj === 'object') {
                 commands.set(commandObj.aliases.concat(commandObj.name), commandObj);
             }
         }
@@ -185,10 +186,7 @@ export function isInteger(text: string): boolean {
  */
 export function generateKey(): void {
     try {
-        let dir = path.resolve('./signature');
-        if (!fs.existsSync(dir)) fs.mkdirSync(dir);
-
-        fs.writeFileSync(`${dir}/key`, crypto.randomBytes(32).toString('hex'));
+        process.env.KEY = crypto.randomBytes(16).toString('hex').toString();
     } catch (err) {
         console.log(err);
     }
@@ -204,8 +202,8 @@ export function generateKey(): void {
 export function generateSignature(query: string, secret: Buffer): EncryptedSignature | null {
     try {
         let iv = crypto.randomBytes(16);
-        let cipher = crypto.createCipheriv('aes-256-cbc', secret, iv);
-        let encryptedQuery = cipher.update(query, 'utf8', 'hex');
+        let cipher = crypto.createCipheriv('aes-128-cbc', secret, iv);
+        let encryptedQuery = cipher.update(query, 'utf-8', 'hex');
         encryptedQuery += cipher.final('hex');
 
         return { iv: iv.toString('hex'), signature: encryptedQuery };
@@ -225,18 +223,19 @@ export function generateSignature(query: string, secret: Buffer): EncryptedSigna
  */
 export function decryptSignature(encryptedQuery: string, secret: Buffer, iv: string): string | null {
     try {
-        let decipher = crypto.createDecipheriv('aes-256-cbc', secret, Buffer.from(iv, 'hex'));
-        let decryptedQuery = decipher.update(encryptedQuery, 'hex', 'utf8');
-        decryptedQuery += decipher.final('utf8');
+        let decipher = crypto.createDecipheriv('aes-128-cbc', secret, Buffer.from(iv, 'hex'));
+        let decryptedQuery = decipher.update(encryptedQuery, 'hex', 'utf-8');
+        decryptedQuery += decipher.final('utf-8');
 
         return decryptedQuery;
-    } catch {
+    } catch (err) {
         return null;
     }
 }
 
 /**
  * Checks the difference between a given time and the current time
+ * 
  * @function
  * @param time The time (in seconds)
  * @param maxDifference The maximum required difference between `Date.now()` and `time`
@@ -248,9 +247,34 @@ export function checkDifference(time: string | number, maxDifference: number): b
         let difference = Math.floor((Date.now() - timestamp) / 1000);
 
         return difference <= maxDifference;
-    } catch {
+    } catch (err) {
+        console.log(err);
         return false;
     }
+}
+
+/**
+ * Checks if the `User-Agent` header value is valid
+ * 
+ * @function
+ * @param req The request object
+ * @returns {boolean} Whether the user is valid, based on the `User-Agent` header
+ */
+export function checkUserAgent(req: Request): boolean {
+    try {
+        const userAgent: string | undefined = req.headers['user-agent'];
+
+        if (userAgent) {
+            if (RegExp(/(?:discordbot|discordapp(?:\.com)?|discord\.com|twitterbot)/gi).test(userAgent)) return true;
+
+            const ua: uaParser.IResult = uaParser(userAgent);
+            return ua.browser.name !== undefined && ua.browser.version !== undefined && ua.engine.name !== undefined && ua.engine.version !== undefined && ua.os.name !== undefined && ua.os.version !== undefined;
+        }
+    } catch (err) {
+        console.log(err);
+    }
+
+    return false;
 }
 
 /**
@@ -267,7 +291,7 @@ export function serverSetup(): void {
 
             if (process.env.NODE_ENV === 'development') {
                 server.app.use((req, _res, next) => {
-                    console.log(`${new Date(Date.now()).toString()}:\nIP: ${req.ip}\nURL: ${req.originalUrl}\nMethod: ${req.method}\nRequest headers:\n  ${req.rawHeaders.map((value, index) => (index % 2 === 0) ? `\n  ${value.trim()}` : `: ${value.trim()}`).join('').trim()}\nRequest body: ${req.body}`);
+                    console.log(`\n${new Date(Date.now()).toString()}:\nIP: ${req.ip}\nURL: ${req.originalUrl}\nMethod: ${req.method}\nRequest headers:\n  ${req.rawHeaders.map((value, index) => (index % 2 === 0) ? `\n  ${value.trim()}` : `: ${value.trim()}`).join('').trim()}\nRequest body: ${req.body}`);
                     next();
                 });
             }
@@ -283,6 +307,8 @@ export function serverSetup(): void {
                         'form-action': ["'self'"],
                         'frame-ancestors': ["*"],
                         'img-src': ["'self'", 'data:'],
+                        'video-src': ["'self'", 'data:'],
+                        'media-src': ["'self'", 'data:'],
                         'object-src': ["'none'"],
                         'script-src': ["'self'", "'unsafe-inline'"],
                         'script-src-attr': ["'none'", "'unsafe-inline'"],
@@ -292,11 +318,11 @@ export function serverSetup(): void {
                 },
                 crossOriginEmbedderPolicy: { policy: 'require-corp' },
                 crossOriginOpenerPolicy: (process.env.TLS_KEY && process.env.TLS_CERT) ? { policy: 'same-origin' } : false,
-                crossOriginResourcePolicy: { policy: 'same-origin' },
+                crossOriginResourcePolicy: { policy: 'cross-origin' },
                 dnsPrefetchControl: { allow: false },
                 frameguard: { action: 'sameorigin' },
                 hidePoweredBy: true,
-                hsts: (process.env.TLS_KEY && process.env.TLS_CERT) ? true : false,
+                hsts: process.env.TLS_KEY !== undefined && process.env.TLS_CERT !== undefined,
                 ieNoOpen: true,
                 noSniff: true,
                 originAgentCluster: false,
@@ -304,12 +330,21 @@ export function serverSetup(): void {
                 referrerPolicy: { policy: 'no-referrer' },
                 xssFilter: false
             }), (_req, res, next) => {
-                res.set('Origin-Agent-Cluster', `${getURLProtocol()}://${config.config.server.domain}${getURLPort(config.config.server.port)}`);
+                res.set('Origin-Agent-Cluster', getURL());
                 res.set('Cache-Control', 'private, no-cache, no-store, must-revalidate, proxy-revalidate, max-age=0');
                 res.set('Expires', 'Mon, 01 Jan 1990 00:00:00 GMT');
                 res.set('Pragma', 'no-cache');
+
                 next();
-            }, compression(),
+            }, compression(), (req, res, next) => {
+                const isUAValid: boolean = checkUserAgent(req);
+                const isHostValid: boolean = (req.headers.host) ? (req.headers.host === config.config.server.domain) || (req.headers.host === `${config.config.server.domain}:${getURLPort(config.config.server.port, true)}`) : false;
+
+                if (!isUAValid || !isHostValid || req.xhr) {
+                    res.redirect('http://127.0.0.1');
+                    if (process.env.NODE_ENV === 'development') console.log(`${req.ip} redirected`);
+                } else next();
+            },
                 root, category, year, month, day, filename, (_req, res, _next) => {
                     res.status(404).end();
                 });
@@ -366,6 +401,7 @@ export function stopServer(): void {
         }
     } catch (err) {
         console.log(err);
+        process.exit(0);
     }
 }
 
@@ -376,6 +412,7 @@ export function stopServer(): void {
  * @returns {void}
  */
 export function addCategory(name: string): void {
+
     if (!config.config.categories.includes(name)) {
         if (/[\\/:*?"<>|]/ig.test(name)) { console.log('The category name must not contain the following characters:\n\\ / : * ? " < > |'); return; }
 
@@ -525,6 +562,19 @@ export function changeMaxFilesPerDay(maxFilesPerDay: number): void {
 }
 
 /**
+ * Changes the admin password
+ * @function
+ * @param password The new password
+ * @returns {void}
+ */
+export function changeAdminPassword(password: string): void {
+    config.config.adminPassword = password;
+    config.rewrite();
+
+    console.log('Admin password changed successfully');
+}
+
+/**
  * Sends a forbidden response to a request (typically when a signature expires)
  * @function
  * @param res The response object
@@ -562,15 +612,16 @@ export function getURLProtocol(): 'http' | 'https' {
 /**
  * Gets the port in the URL syntax
  * 
- * Returns `''` if the port is either `80` or `443`, as modern browsers omit the port if it is one of those two
+ * Returns `''` if the port is either `80` or `443` and `keepPort` is not provided, `undefined` or `false`, as modern browsers omit the port if it is one of those two
  * @function
  * @param port The port
- * @returns {'' | `:${number}`} The port in URL syntax or `''`, if `80` or '443'
+ * @param keepPort Whether to return the `port` with a leading `:`, even if `80` or `443`
+ * @returns {'' | `:${number}`} The port in URL syntax (`:port`) or `''`, if `80` or '443' and `keepPort` is not provided, `undefined` or `false`
  */
-export function getURLPort(port: number): '' | `:${number}` {
+export function getURLPort(port: number, keepPort?: boolean | undefined): '' | `:${number}` {
     try {
         if (isInteger(port.toString())) {
-            if (port === 80 || port === 443) {
+            if ((port === 80 || port === 443) && !keepPort) {
                 return '';
             } else {
                 return `:${port}`;
@@ -581,4 +632,55 @@ export function getURLPort(port: number): '' | `:${number}` {
     } catch (err) {
         throw err;
     }
+}
+
+/**
+ * Constructs the stock URL, based on what URI components are provided
+ * @function
+ * @param root The root directory
+ * @param category The category
+ * @param year The year
+ * @param month The month
+ * @param day The day
+ * @param dir The directory
+ * @param thumbs Whether the URL lead to a thumbnail
+ * @param filename The filename
+ * @returns {string} The URL
+ */
+export function getURL(root?: string, category?: string, year?: string, month?: string, day?: string, dir?: string | undefined, thumbs?: boolean, filename?: string): string {
+    let url: string = `${getURLProtocol()}://${config.config.server.domain}${getURLPort(config.config.server.port)}`;
+
+    if (root) {
+        url += `/${root}`;
+
+        if (category) {
+            url += `/${category}`;
+
+            if (year) {
+                url += `/${year}`;
+
+                if (month) {
+                    url += `/${month}`;
+
+                    if (day) {
+                        url += `/${day}`;
+
+                        if (dir) {
+                            url += `/${dir}`;
+                        }
+
+                        if (thumbs) {
+                            url += '/thumbs';
+                        }
+
+                        if (filename) {
+                            url += `/${filename}${(thumbs) ? '_thumb.png' : ''}`;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return url;
 }
