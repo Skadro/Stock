@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="<%= escape(stylesheet) %>" />
+    <link rel="icon" type="image/x-icon" href="<%= escape(favicon) %>" />
+    <script type="text/javascript" src="<%= script %>"></script>
+    <title>Sign Up</title>
+</head>
+
+<body>
+    <h1>Sign Up</h1>
+    <div id="container">
+        <div id="error"></div><br><br>
+        <div id="error-username"></div>
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" required><br><br>
+
+        <div id="error-email"></div>
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" required><br><br>
+
+        <div id="error-password"></div>
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required><br><br>
+
+        <button id="submitButton">Sign Up</button>
+    </div>
+</body>
+
+</html>

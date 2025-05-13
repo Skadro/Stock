@@ -1,6 +1,6 @@
 node_modules/
 .vscode/
-signature/
+cert/
 
 package-lock.json
 .env
@@ -19,6 +19,8 @@ config.json
 **/**/*.mp4
 **/**/*.webm
 
+**/**/*.txt
+
 **/**/*.pem
 **/**/*.crt
 **/**/*.cer
@@ -29,3 +31,4 @@ config.json
 !views/directory.png
 !views/stock.jpg
 !views/favicon.ico
+!views/robots.txt

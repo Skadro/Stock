@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="<%= escape(stylesheet) %>" />
+    <link rel="icon" type="image/x-icon" href="<%= escape(favicon) %>" />
+    <script type="text/javascript" src="<%= script %>"></script>
+    <title>Login</title>
+</head>
+
+<body>
+    <h1>Login</h1>
+    <div id="container">
+        <div id="error"></div><br><br>
+        <div id="error-username-email"></div>
+        <label for="username-email">Username or Email:</label>
+        <input type="text" id="username-email" name="username/email" required><br><br>
+
+        <div id="error-password"></div>
+        <label for="password">Password:</label>
+        <input type="password" id="password" name="password" required><br><br>
+
+        <button id="submitButton">Login</button>
+    </div>
+</body>
+
+</html>

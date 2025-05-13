@@ -17,7 +17,7 @@
         // Type checking
         "allowUnreachableCode": false,
         "allowUnusedLabels": false,
-        "exactOptionalPropertyTypes": true,
+        "exactOptionalPropertyTypes": false,
         "noFallthroughCasesInSwitch": true,
         "noUncheckedIndexedAccess": true,
         "useUnknownInCatchVariables": true,

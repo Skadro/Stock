@@ -10,7 +10,20 @@
 		"signatureExpiry": 604800
 	},
 	"filesPerPage": 30,
-	"maxFilesPerDay": 5000,
 	"adminPassword": "admin",
-	"categories": []
+	"categories": [],
+	"viewsFiles": [
+		"signup.js",
+		"login.js",
+		"formsin.css",
+		"profile.css",
+		"profile.js",
+		"upload.css",
+		"upload.js",
+		"stock.css",
+		"media.css",
+		"favicon.ico",
+		"stock.jpg",
+		"directory.png"
+	]
 }

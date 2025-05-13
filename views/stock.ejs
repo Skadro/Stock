@@ -21,7 +21,6 @@
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="<%= meta.siteName %>" />
     <meta property="og:title" content="<%= meta.pageTitle %>" />
-    <meta property="og:description" content="<%= meta.description %>" />
     <meta property="og:url" content="<%= meta.url %>" />
     <meta property="og:image" content="<%= meta.image %>" />
     <% if (secured) { %>
@@ -31,18 +30,24 @@
             <meta name="twitter:site"
                 content="@<%= meta.siteName.toLowerCase().replace(/[^a-zA-Z0-9_]|^\d+/g, '') %>" />
             <meta name="twitter:title" content="<%= meta.pageTitle %>" />
-            <meta name="twitter:description" content="<%= meta.description %>" />
             <meta name="twitter:image" content="<%= meta.image %>" />
-            <meta name="twitter:image:alt" content="<%= meta.siteName %>" />
+            <meta name="twitter:image:alt" content="<%= meta.title %>" />
 </head>
 
 <body>
+    <header class="sticky-header">
+        <nav>
+            <ul>
+                <li><a href="/profile"><button>Profile</button></a></li>
+                <li><a href="/stock"><button>My stock</button></a></li>
+                <li><a href="/upload"><button>Upload</button></a></li>
+                <li><a href="/logout"><button>Logout</button></a></li>
+            </ul>
+        </nav>
+    </header>
     <h1 class="title">
         <%= meta.title %>
     </h1>
-    <h2 class="title">
-        <%= meta.date %>
-    </h2>
     <div id="container">
         <% var numPages=Math.ceil(files.length / filesPerPage); %>
             <% var startIndex=(page - 1) * filesPerPage; %>
@@ -54,7 +59,7 @@
                                 'directory').forEach((directory) => { %>
                                 <div class="block">
                                     <a href="<%= directory.url %>" aria-label="Go to <%= directory.filename %>">
-                                        <img src="<%= directoryIcon %>" alt="<%= directory.filename %>">
+                                        <img src="<%= directoryIcon %>" alt="<%= directory.filename %>" loading="lazy">
                                         <span>
                                             <%= directory.filename %>
                                         </span>
@@ -64,23 +69,33 @@
                                     <% }); %>
                                         <% } %>
                                             <% for (var i=startIndex; i < endIndex - dirs; i++) { %>
-                                                <% if (files[i].type.mediaType==='image' && files[i].type.contentType) {
-                                                    %>
+                                                <% if (files[i].source && files[i].type.mediaType==='image' &&
+                                                    files[i].type.contentType) { %>
                                                     <div class="block">
                                                         <a href="<%= files[i].url %>"
                                                             aria-label="Go to <%= files[i].filename %>">
                                                             <img src="<%= files[i].source %>"
-                                                                alt="<%= files[i].filename %>">
+                                                                alt="<%= files[i].filename %>" <% if (files[i].width &&
+                                                                files[i].height) { %>
+                                                            width="<%= files[i].width %>"
+                                                                height="<%= files[i].height %>" loading="lazy"
+                                                                    <% } %>>
                                                         </a>
                                                     </div>
-                                                    <% } else if (files[i].type.mediaType==='video' &&
-                                                        files[i].type.contentType) { %>
+                                                    <% } else if (files[i].source && files[i].type.mediaType==='video'
+                                                        && files[i].type.contentType) { %>
                                                         <div class="block">
                                                             <a href="<%= files[i].url %>"
                                                                 aria-label="Go to <%= files[i].filename %>">
-                                                                <video aria-hidden="true" controls>
-                                                                    <source src="<%= files[i].source %>"
-                                                                        type="<%= files[i].type.contentType %>">
+                                                                <video aria-hidden="true" <% if (files[i].width &&
+                                                                    files[i].height) { %>
+                                                                    width="<%= files[i].width %>"
+                                                                        height="<%= files[i].height %>"
+                                                                            preload="metadata"
+                                                                            <% } %>
+                                                                                controls>
+                                                                                <source src="<%= files[i].source %>"
+                                                                                    type="<%= files[i].type.contentType %>">
                                                                 </video>
                                                             </a>
                                                         </div>
@@ -94,7 +109,7 @@
                 <% for (var i=1; i <=numPages; i++) { %>
                     <% if (numPages> 10) { %>
                         <% if (i===1 || i===numPages || Math.abs(i - page) <=5) { %>
-                            <a href="?page=<%= i %><%= adminPassword ? `&pass=${adminPassword}` : '' %>"
+                            <a href="?page=<%= i %><%= adminPassword ? `&admin=1&pass=${adminPassword}` : '' %>"
                                 class="page <%= i===page ? 'active' : '' %>" aria-label="Go to page <%= i %>">
                                 <%= i %>
                             </a>
@@ -110,7 +125,7 @@
                                                         <% } %>
                                                             <% } %>
                                                                 <% } else { %>
-                                                                    <a href="?page=<%= i %><%= adminPassword ? `&pass=${adminPassword}` : '' %>"
+                                                                    <a href="?page=<%= i %><%= adminPassword ? `&admin=1&pass=${adminPassword}` : '' %>"
                                                                         class="page <%= i===page ? 'active' : '' %>"
                                                                         aria-label="Go to page <%= i %>">
                                                                         <%= i %>

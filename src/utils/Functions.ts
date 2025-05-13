@@ -2,31 +2,39 @@
 import fs from 'fs';
 import path from 'path';
 import { setTimeout } from 'timers/promises';
-import { Request, Response } from 'express';
+import mysql, { RowDataPacket } from 'express-mysql-session/node_modules/mysql2';
+import express, { Request, Response } from 'express';
 import http from 'http';
 import https from 'https';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
+import MySQLStore from 'express-mysql-session';
+import * as session from 'express-session';
 import uaParser from 'ua-parser-js';
 import crypto from 'crypto';
 import readline from 'readline';
+
+// Routes
+import root from '../routes/root';
+import views from '../routes/views';
+import oembed from '../routes/oembed';
+import signup from '../routes/signup';
+import login from '../routes/login';
+import logout from '../routes/logout';
+import profile from '../routes/profile';
+import user from '../routes/user';
+import stock from '../routes/stock';
+import upload from '../routes/upload';
+
+// Internal libs
+import { Command, EncryptedSignature, User } from './Structures';
+import { server, config, commands, mediaRegEx } from './Storage';
+
 const rl: readline.Interface = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
 });
-
-// Routes
-import root from '../routes/root';
-import category from '../routes/category';
-import year from '../routes/year';
-import month from '../routes/month';
-import day from '../routes/day';
-import filename from '../routes/filename';
-
-// Internal libs
-import { Command, EncryptedSignature, FormattedDate } from './Structures';
-import { server, config, commands } from './Storage';
 
 var cmdPrompt: boolean = false;
 
@@ -99,66 +107,6 @@ export async function commandPrompt(): Promise<void> {
 }
 
 /**
- * A date formatter that is used when creating stock directories
- * @function
- * @param date A `Date` instance
- * @returns {FormattedDate} the formatted date
- */
-export function formatDate(date: Date): FormattedDate {
-    const month = date.getUTCMonth() + 1;
-    const day = date.getUTCDate();
-
-    let finalDate: FormattedDate = { year: '', month: '', day: '' } as FormattedDate;
-
-    finalDate.year = date.getUTCFullYear().toString();
-
-    if (month.toString().length < 2) {
-        finalDate.month = "0" + month.toString();
-    } else {
-        finalDate.month = month.toString();
-    }
-
-    if (day.toString().length < 2) {
-        finalDate.day = "0" + day.toString();
-    } else {
-        finalDate.day = day.toString();
-    }
-
-    return finalDate;
-}
-
-/**
- * Creates the directories for the stock based on the given `FormattedDate` parameter
- * @function
- * @param date Formatted date
- * @returns {Promise<string>} A promise resolving the number of created folders
- */
-export async function createDate(date: FormattedDate): Promise<string> {
-    let i = 0;
-    return await new Promise((resolve, reject) => {
-        try {
-            const rootDir = `./${config.config.server.rootDir}`;
-            const datePath = `${date.year}/${date.month}/${date.day}`;
-
-            config.config.categories.forEach((category) => {
-                if (category.trim() == null || category.trim() == '') return;
-                if (/[\\/:*?"<>|]/ig.test(category)) return;
-
-                const fullPath = path.resolve(`${rootDir}/${category}/${datePath}`);
-
-                if (!fs.existsSync(fullPath)) {
-                    i++;
-                    fs.mkdirSync(fullPath, { recursive: true });
-                }
-            });
-        } catch (err) {
-            reject(err);
-        }
-        resolve(i.toString());
-    });
-}
-
-/**
  * Checks if a string is a positive integer
  * @function
  * @param text The string to be checked
@@ -177,6 +125,15 @@ export function isInteger(text: string): boolean {
     if (parseInt(text) <= 0) isInteger = false;
 
     return isInteger;
+}
+
+/**
+ * Checks if a value is invalid (`null` or `undefined`)
+ * @param value The value
+ * @returns {boolean} Whether the value is invalid or not
+ */
+export function isInvalid(value: any): value is null | undefined {
+    return value === null || value === undefined;
 }
 
 /**
@@ -267,7 +224,7 @@ export function checkUserAgent(req: Request): boolean {
         if (userAgent) {
             if (RegExp(/(?:discordbot|discordapp(?:\.com)?|discord\.com|twitterbot)/gi).test(userAgent)) return true;
 
-            const ua: uaParser.IResult = uaParser(userAgent);
+            const ua: uaParser.IResult = uaParser.UAParser(userAgent);
             return ua.browser.name !== undefined && ua.browser.version !== undefined && ua.engine.name !== undefined && ua.engine.version !== undefined && ua.os.name !== undefined && ua.os.version !== undefined;
         }
     } catch (err) {
@@ -278,6 +235,83 @@ export function checkUserAgent(req: Request): boolean {
 }
 
 /**
+ * Checks if a file is a valid media file or zip archive
+ * @function
+ * @param ext The file extention
+ * @param zip Whether add the zip extention as a requirement to pass the check
+ * @returns {boolean} Whether the file is an image, a video or a zip archive
+ */
+export function checkFileExtention(ext: string, zip: boolean): boolean {
+    return mediaRegEx.image.test(ext) || mediaRegEx.video.test(ext) || (zip && /^\.(zip)$/i.test(ext));
+}
+
+export function getUser(user: RowDataPacket, includePassword?: boolean | undefined): User | undefined {
+    if ((user.user_id !== undefined && user.username !== undefined && user.email !== undefined && user.password !== undefined && user.creation_date !== undefined && user.last_active !== undefined && user.admin !== undefined) && (typeof user.user_id === 'number' && typeof user.username === 'string' && typeof user.email === 'string' && typeof user.password === 'string' && typeof user.creation_date === 'object' && typeof user.last_active === 'object' && typeof user.admin === 'number' && (user.admin === 1 || user.admin === 0))) {
+        return {
+            user_id: user.user_id,
+            username: user.username,
+            email: user.email,
+            ...(includePassword) ? { password: user.password } : {},
+            display_name: user.display_name,
+            bio: user.bio,
+            avatar_url: user.avatar_url,
+            creation_date: user.creation_date,
+            last_active: user.last_active,
+            admin: user.admin === 1
+        }
+    }
+
+    return undefined;
+}
+
+export function hashPassword(rawPassword: string, salt?: string): string {
+    let randomSalt: string | undefined = undefined;
+    if (!salt) randomSalt = crypto.randomBytes(32).toString('hex');
+
+    return `${crypto.pbkdf2Sync(rawPassword, (salt) ? salt : randomSalt!, 1000, 64, 'sha512').toString('hex')}/${(salt) ? salt : randomSalt!}`;
+}
+
+/**
+ * Setups the database connection
+ * @function
+ * @returns {void}
+ */
+export function databaseConnectionSetup(): void {
+    try {
+        server.database = mysql.createPool({
+            host: config.config.database.host,
+            port: config.config.database.port,
+            user: config.config.database.user,
+            password: config.config.database.password,
+            database: config.config.database.database,
+            waitForConnections: true,
+            connectionLimit: config.config.database.connectionLimit,
+            maxIdle: config.config.database.maxIdle,
+            idleTimeout: config.config.database.idleTimeout,
+            queueLimit: 0,
+            enableKeepAlive: config.config.database.enableKeepAlive
+        });
+
+        server.database.getConnection((err, connection) => {
+            if (server.database) {
+                if (err) {
+                    console.log('Failed to connect to the database', err);
+                    process.exit(0);
+                }
+
+                connection.execute('CREATE TABLE IF NOT EXISTS `users` (`user_id` INT NOT NULL AUTO_INCREMENT , `username` VARCHAR(255) NOT NULL , `email` VARCHAR(255) NOT NULL , `password` VARCHAR(255) NOT NULL , `display_name` VARCHAR(255) NULL DEFAULT NULL , `bio` TEXT NULL DEFAULT NULL , `avatar_url` VARCHAR(255) NULL DEFAULT NULL , `creation_date` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP , `last_active` TIMESTAMP DEFAULT CURRENT_TIMESTAMP , `admin` BOOLEAN NOT NULL DEFAULT FALSE , PRIMARY KEY (`user_id`) , UNIQUE `USERNAME` (`username`) , UNIQUE `EMAIL` (`email`))');
+                connection.execute('CREATE TABLE IF NOT EXISTS `sessions` (`session_id` VARCHAR(255) NOT NULL , `session_data` TEXT NOT NULL , `expire_date` INT(11) UNSIGNED NOT NULL , PRIMARY KEY(`session_id`))');
+            }
+        });
+
+        console.log('Connected to the database');
+    } catch (err) {
+        console.log('Failed to connect to the database', err);
+        process.exit(0);
+    }
+}
+
+/**
  * Setups the server and the Express routes
  * @function
  * @returns {void}
@@ -285,16 +319,38 @@ export function checkUserAgent(req: Request): boolean {
 export function serverSetup(): void {
     if (server.app) {
         try {
+            if (!process.env.SESSION_SECRET) { console.log('You need to provide a session secret'); return; }
             server.app.disable('x-powered-by');
             server.app.set('view engine', 'ejs');
             server.app.set('views', path.resolve(`./views`));
 
-            if (process.env.NODE_ENV === 'development') {
+            server.app.use(express.urlencoded({ extended: true }));
+
+            if (isInDevelopment()) {
                 server.app.use((req, _res, next) => {
                     console.log(`\n${new Date(Date.now()).toString()}:\nIP: ${req.ip}\nURL: ${req.originalUrl}\nMethod: ${req.method}\nRequest headers:\n  ${req.rawHeaders.map((value, index) => (index % 2 === 0) ? `\n  ${value.trim()}` : `: ${value.trim()}`).join('').trim()}\nRequest body: ${req.body}`);
                     next();
                 });
             }
+
+            if (!server.database) throw new Error('The database connection pool is invalid')
+
+            const store = MySQLStore(session);
+
+            const sessionStore = new store({
+                expiration: 2419200000,
+                createDatabaseTable: false,
+                clearExpired: true,
+                checkExpirationInterval: 18000000,
+                schema: {
+                    tableName: 'sessions',
+                    columnNames: {
+                        session_id: 'session_id',
+                        expires: 'expire_date',
+                        data: 'session_data'
+                    }
+                }
+            }, server.database);
 
             server.app.use(cors(), helmet({
                 contentSecurityPolicy: {
@@ -306,17 +362,16 @@ export function serverSetup(): void {
                         'font-src': ["'self'", 'https:', 'data:'],
                         'form-action': ["'self'"],
                         'frame-ancestors': ["*"],
-                        'img-src': ["'self'", 'data:'],
-                        'video-src': ["'self'", 'data:'],
-                        'media-src': ["'self'", 'data:'],
+                        'img-src': ["'self'", 'https:', 'data:'],
+                        'media-src': ["'self'", 'https:', 'data:'],
                         'object-src': ["'none'"],
                         'script-src': ["'self'", "'unsafe-inline'"],
-                        'script-src-attr': ["'none'", "'unsafe-inline'"],
+                        'script-src-attr': ["'none'"],
                         'style-src': ["'self'", 'https:', "'unsafe-inline'"],
                         ...(process.env.TLS_KEY && process.env.TLS_CERT ? { 'upgrade-insecure-requests': [] } : {})
                     }
                 },
-                crossOriginEmbedderPolicy: { policy: 'require-corp' },
+                crossOriginEmbedderPolicy: { policy: 'credentialless' },
                 crossOriginOpenerPolicy: (process.env.TLS_KEY && process.env.TLS_CERT) ? { policy: 'same-origin' } : false,
                 crossOriginResourcePolicy: { policy: 'cross-origin' },
                 dnsPrefetchControl: { allow: false },
@@ -342,10 +397,10 @@ export function serverSetup(): void {
 
                 if (!isUAValid || !isHostValid || req.xhr) {
                     res.redirect('http://127.0.0.1');
-                    if (process.env.NODE_ENV === 'development') console.log(`${req.ip} redirected`);
+                    if (isInDevelopment()) console.log(`${req.ip} redirected`);
                 } else next();
-            },
-                root, category, year, month, day, filename, (_req, res, _next) => {
+            }, session.default({ secret: process.env.SESSION_SECRET, resave: true, saveUninitialized: true, store: sessionStore, cookie: { secure: process.env.TLS_KEY !== undefined && process.env.TLS_CERT !== undefined, httpOnly: true, maxAge: 2419200000, domain: config.config.server.domain, sameSite: 'strict' } }),
+                root, views, oembed, signup, login, logout, profile, user, stock, upload, (_req, res, _next) => {
                     res.status(404).end();
                 });
 
@@ -394,7 +449,7 @@ export function stopServer(): void {
             server.server.unref();
             server.server.close((err) => {
                 if (err) {
-                    if (process.env.NODE_ENV && process.env.NODE_ENV === 'development') console.log(err);
+                    if (isInDevelopment()) console.log(err);
                     process.exit(0);
                 }
             });
@@ -402,26 +457,6 @@ export function stopServer(): void {
     } catch (err) {
         console.log(err);
         process.exit(0);
-    }
-}
-
-/**
- * Adds a category to config
- * @function
- * @param name The category's name
- * @returns {void}
- */
-export function addCategory(name: string): void {
-
-    if (!config.config.categories.includes(name)) {
-        if (/[\\/:*?"<>|]/ig.test(name)) { console.log('The category name must not contain the following characters:\n\\ / : * ? " < > |'); return; }
-
-        config.config.categories.push(name);
-        config.rewrite();
-
-        console.log(`Category \"${name}\" has been created. You need to use the \"createtoday\" command to create its folder`);
-    } else {
-        console.log(`A category named \"${name}\" already exists`);
     }
 }
 
@@ -538,7 +573,7 @@ export function changeSignatureExpiry(expiry: number): void {
 /**
  * Changes the number of files per page
  * @function
- * @param filesPerPage The new `files per day` value
+ * @param filesPerPage The new `files per page` value
  * @returns {void}
  */
 export function changeFilesPerPage(filesPerPage: number): void {
@@ -546,19 +581,6 @@ export function changeFilesPerPage(filesPerPage: number): void {
     config.rewrite();
 
     console.log('Files per page value changed successfully');
-}
-
-/**
- * Changes the maximum number of files per day
- * @function
- * @param maxFilesPerDay The new `max files per day` value
- * @returns {void}
- */
-export function changeMaxFilesPerDay(maxFilesPerDay: number): void {
-    config.config.maxFilesPerDay = maxFilesPerDay;
-    config.rewrite();
-
-    console.log('Maximum files per day value changed successfully');
 }
 
 /**
@@ -585,7 +607,7 @@ export function sendForbidden(res: Response): boolean {
         res.set('Content-Type', 'image/jpeg');
         res.status(200).sendFile(path.resolve(`./views/403.jpg`), (err) => {
             if (err) {
-                if (process.env.NODE_ENV && process.env.NODE_ENV === 'development') console.log(err);
+                if (isInDevelopment()) console.log(err);
                 res.status(500).end();
             }
         });
@@ -637,50 +659,23 @@ export function getURLPort(port: number, keepPort?: boolean | undefined): '' | `
 /**
  * Constructs the stock URL, based on what URI components are provided
  * @function
- * @param root The root directory
- * @param category The category
- * @param year The year
- * @param month The month
- * @param day The day
- * @param dir The directory
- * @param thumbs Whether the URL lead to a thumbnail
- * @param filename The filename
+ * @param parts URI components
  * @returns {string} The URL
  */
-export function getURL(root?: string, category?: string, year?: string, month?: string, day?: string, dir?: string | undefined, thumbs?: boolean, filename?: string): string {
+export function getURL(...parts: (string | null | undefined)[]): string {
     let url: string = `${getURLProtocol()}://${config.config.server.domain}${getURLPort(config.config.server.port)}`;
 
-    if (root) {
-        url += `/${root}`;
-
-        if (category) {
-            url += `/${category}`;
-
-            if (year) {
-                url += `/${year}`;
-
-                if (month) {
-                    url += `/${month}`;
-
-                    if (day) {
-                        url += `/${day}`;
-
-                        if (dir) {
-                            url += `/${dir}`;
-                        }
-
-                        if (thumbs) {
-                            url += '/thumbs';
-                        }
-
-                        if (filename) {
-                            url += `/${filename}${(thumbs) ? '_thumb.png' : ''}`;
-                        }
-                    }
-                }
-            }
-        }
-    }
+    parts.filter((part) => part !== null && part !== undefined).forEach((part) => url += `/${escape(part!)}`);
 
     return url;
+}
+
+/**
+ * Checks if the application is running in the `development` mode
+ * @returns {boolean} Whether the application is running in `development` mode
+ */
+export function isInDevelopment(): boolean {
+    if (process.env.NODE_ENV)
+        return process.env.NODE_ENV === 'development';
+    else return false;
 }

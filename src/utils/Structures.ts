@@ -1,5 +1,6 @@
 // External libs
 import fs from 'fs';
+import { Pool } from "express-mysql-session/node_modules/mysql2/typings/mysql/index";
 import { Express } from 'express';
 import http from 'http';
 import https from 'https';
@@ -60,6 +61,53 @@ export interface ServerConfig {
     signatureExpiry: number;
 }
 
+export interface DatabaseObject {
+    /**
+     * The hostname of the database you are connecting to
+     */
+    host: string;
+
+    /**
+     * The port number to connect to
+     */
+    port: number;
+
+    /**
+     * The MySQL user to authenticate as
+     */
+    user: string;
+
+    /**
+     * The password of that MySQL user
+     */
+    password: string;
+
+    /**
+     * Name of the database to use for this connection
+     */
+    database: string;
+
+    /**
+     * The maximum number of connections to create at once
+     */
+    connectionLimit: number;
+
+    /**
+     * The maximum number of idle connections
+     */
+    maxIdle: number;
+
+    /**
+     * The idle connections timeout, in milliseconds
+     */
+    idleTimeout: number;
+
+    /**
+     * Enable keep-alive on the socket
+     */
+    enableKeepAlive: boolean;
+}
+
 /**
  * The object model for the `config.json` file
  * @interface
@@ -69,6 +117,11 @@ export interface ConfigObject {
      * The server configuration
      */
     server: ServerConfig;
+
+    /**
+     * The database connection settings
+     */
+    database: DatabaseObject;
 
     /**
      * The number of files per page
@@ -86,9 +139,9 @@ export interface ConfigObject {
     adminPassword: string;
 
     /**
-     * The categories (and subcategories)
+     * Files (in the `views` folder) allowed to be sent to the client
      */
-    categories: string[];
+    viewsFiles: string[];
 }
 
 /**
@@ -105,6 +158,11 @@ export interface Server {
      * The server instance
      */
     server: http.Server | https.Server | undefined;
+
+    /**
+     * The database connection pool
+     */
+    database: Pool | undefined;
 }
 
 /**
@@ -121,27 +179,6 @@ export interface EncryptedSignature {
      * The encrypted signature
      */
     signature: string
-}
-
-/**
- * Formatted date model
- * @interface
- */
-export interface FormattedDate {
-    /**
-     * The year
-     */
-    year: string;
-
-    /**
-     * The month (preceded by a `0` if lower than `10`)
-     */
-    month: string;
-
-    /**
-     * The day (preceded by a `0` if lower than `10`)
-     */
-    day: string;
 }
 
 /**
@@ -173,7 +210,7 @@ export interface StockFile {
     /**
      * The URL to the raw served file
      */
-    source: string;
+    source: string | null;
 
     /**
      * The filename of the media
@@ -184,6 +221,34 @@ export interface StockFile {
      * The media type object
      */
     type: StockFileType;
+
+    /**
+     * The width of the media
+     */
+    width: number | null;
+
+    /**
+     * The height of the media
+     */
+    height: number | null;
+}
+
+/**
+ * The object model for `session.user`
+ * @interface
+ */
+export interface User {
+    user_id: number;
+    username: string;
+    email: string;
+    password?: string;
+    display_name: string | null;
+    bio: string | null;
+    avatar_url: string | null;
+    creation_date: number;
+    last_active: number;
+    admin: boolean;
+    expire?: number;
 }
 
 /**
@@ -194,7 +259,7 @@ export class Config {
     /**
      * Configuration object
      */
-    config: ConfigObject = { server: { domain: 'localhost', port: 80, rootDir: 'stock', socketTimeout: 300000, keepAliveTimeout: 10000, requestTimeout: 30000, headersTimeout: 10000, signatureExpiry: 86400 }, filesPerPage: 30, maxFilesPerDay: 5000, adminPassword: 'admin', categories: [] };
+    config: ConfigObject = { server: { domain: 'localhost', port: 80, rootDir: 'stock', socketTimeout: 300000, keepAliveTimeout: 10000, requestTimeout: 30000, headersTimeout: 10000, signatureExpiry: 86400 }, database: { host: 'localhost', port: 3306, user: '', password: '', database: '', connectionLimit: 10, maxIdle: 10, idleTimeout: 60000, enableKeepAlive: true }, filesPerPage: 30, maxFilesPerDay: 5000, adminPassword: 'admin', viewsFiles: [] };
 
     /**
      * Configiration file path
@@ -208,7 +273,7 @@ export class Config {
         try {
             const config: ConfigObject | null | undefined = JSON.parse(fs.readFileSync(configFilePath, 'utf-8'));
 
-            if (config) {
+            if (config && typeof config === 'object') {
                 this.config = config;
                 this.configFilePath = configFilePath;
             } else {
@@ -228,7 +293,7 @@ export class Config {
         try {
             const config: ConfigObject | null | undefined = JSON.parse(fs.readFileSync(this.configFilePath!, 'utf-8'));
 
-            if (config) {
+            if (config && typeof config === 'object') {
                 this.config = config;
                 return true;
             } else {

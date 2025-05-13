@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        <%= user.username %>'s profile
+    </title>
+    <link rel="stylesheet" type="text/css" href="<%= escape(stylesheet) %>" />
+    <link rel="icon" type="image/x-icon" href="<%= escape(favicon) %>" />
+</head>
+
+<body>
+    <header class="sticky-header">
+        <nav>
+            <ul>
+                <li><a href="/profile"><button>Profile</button></a></li>
+                <li><a href="/stock"><button>My stock</button></a></li>
+                <li><a href="/upload"><button>Upload</button></a></li>
+                <li><a href="/logout"><button>Logout</button></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <section class="profile-info">
+            <% if (sameUser) { %>
+                <% if (user.avatar_url) { %>
+                    <img src="<%= user.avatar_url %>" alt="<%= user.username %>'s avatar">
+                    <% } %>
+                        <h2>
+                            <%= user.username %>
+                        </h2>
+                        <p>Email: <%= user.email %>
+                        </p>
+                        <% } else { %>
+                            <% if (viewedUser) { %>
+                                <% if (viewedUser.avatar_url) { %>
+                                    <img src="<%= viewedUser.avatar_url %>" alt="<%= viewedUser.username %>'s avatar">
+                                    <% } %>
+                                        <h2>
+                                            <%= viewedUser.username %>
+                                        </h2>
+                                        <% if (sameUser) { %>
+                                            <p>Email: <%= user.email %>
+                                            </p>
+                                            <% } %>
+                                                <% } %>
+                                                    <% } %>
+        </section>
+        <% if (sameUser) { %>
+            <section class="profile-actions">
+                <a href="/profile/edit">Edit profile</a>
+            </section>
+            <% } %>
+                <section class="media-gallery">
+                    <h2>
+                        <%= (sameUser) ? 'My stock' : `${user.username}'s stock` %>
+                    </h2>
+                    <div class="gallery">
+                        <% if (files) { %>
+                            <% if (files.length===0) { %>
+                                <h1>No content</h1>
+                                <% } %>
+                                    <% files.forEach(file=> { %>
+                                        <% if (file.source && file.type.mediaType==='image' && file.type.contentType) {
+                                            %>
+                                            <div class="block">
+                                                <a href="<%= file.url %>" aria-label="Go to <%= file.filename %>">
+                                                    <img src="<%= file.source %>" alt="<%= file.filename %>" <% if
+                                                        (file.width && file.height) { %>
+                                                    width="<%= file.width %>"
+                                                        height="<%= file.height %>" loading="lazy"
+                                                            <% } %>>
+                                                </a>
+                                            </div>
+                                            <% } else if (file.source && file.type.mediaType==='video' &&
+                                                file.type.contentType) { %>
+                                                <div class="block">
+                                                    <a href="<%= file.url %>" aria-label="Go to <%= file.filename %>">
+                                                        <video aria-hidden="true" <% if (file.width && file.height) { %>
+                                                            width="<%= file.width %>"
+                                                                height="<%= file.height %>"
+                                                                    preload="metadata"
+                                                                    <% } %>
+                                                                        controls>
+                                                                        <source src="<%= file.source %>"
+                                                                            type="<%= file.type.contentType %>">
+                                                        </video>
+                                                    </a>
+                                                </div>
+                                                <% } %>
+                                                    <% }) %>
+                                                        <% } %>
+                    </div>
+                </section>
+    </main>
+    <footer>
+    </footer>
+</body>
+
+</html>

@@ -1,0 +1,99 @@
+html {
+    align-items: center;
+}
+
+body {
+    align-items: center;
+    background-color: rgb(117, 52, 223);
+}
+
+h1 {
+    position: static;
+    text-align: center;
+    overflow: auto;
+    text-overflow: ellipsis;
+    border: 10px;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    font-size: 40px;
+    color: rgb(0, 0, 0);
+}
+
+#container {
+    width: fit-content;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    margin: auto auto;
+    align-items: center;
+    justify-content: space-between;
+    text-align: center;
+    overflow: auto;
+    background-color: grey;
+}
+
+#error {
+    color: red;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    font-size: xx-large;
+    position: static;
+    text-align: center;
+    overflow: auto;
+    text-overflow: ellipsis;
+}
+
+#error-username,
+#error-email,
+#error-username-email,
+#error-password {
+    color: red;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    font-size: x-large;
+    position: static;
+    text-align: center;
+    overflow: auto;
+    text-overflow: ellipsis;
+}
+
+label {
+    position: static;
+    text-align: center;
+    overflow: auto;
+    text-overflow: ellipsis;
+    border: 10px;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    font-size: xx-large;
+    color: rgb(0, 0, 0);
+}
+
+input {
+    width: 80%;
+    height: 2rem;
+    color: rgb(0, 0, 0);
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    letter-spacing: 2px;
+    word-spacing: 4px;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    font-size: larger;
+    font-weight: bold;
+    position: relative;
+    margin: auto auto;
+    border: 2px solid darkgray;
+    border-radius: 5px;
+    overflow: auto;
+    background-color: lightgray;
+}
+
+#submitButton {
+    display: inline-block;
+    border-radius: 5px;
+    border-width: 5px;
+    margin-bottom: 10px;
+    color: darkblue;
+    background-color: blueviolet;
+    border-color: blue;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    font-size: larger;
+    font-weight: bold;
+    transition-duration: 0.5s;
+}

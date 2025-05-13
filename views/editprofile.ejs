@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>
+        Edit profile
+    </title>
+    <link rel="stylesheet" type="text/css" href="<%= escape(stylesheet) %>" />
+    <link rel="icon" type="image/x-icon" href="<%= escape(favicon) %>" />
+    <script type="text/javascript" src="<%= script %>"></script>
+</head>
+
+<body>
+    <header class="sticky-header">
+        <nav>
+            <ul>
+                <li><a href="/profile"><button>Profile</button></a></li>
+                <li><a href="/stock"><button>My stock</button></a></li>
+                <li><a href="/upload"><button>Upload</button></a></li>
+                <li><a href="/logout"><button>Logout</button></a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <section id="account-section" class="edit-section">
+            <h4>Username: </h4>
+            <input type="text" id="username-box" value="<%= user.username %>" placeholder="Username">
+            <h4>Email: </h4>
+            <input type="email" id="email-box" value="<%= user.email %>" placeholder="Email">
+            <h4>Password: </h4>
+            <input type="password" id="password-box" placeholder="Password">
+            <h4>Confirm password: </h4>
+            <input type="password" id="confirm-password-box" placeholder="Confirm password">
+        </section>
+        <section id="profile-section" class="edit-section">
+            <h4>Display name: </h4>
+            <input type="text" id="display-name-box" value="<%= user.display_name %>" placeholder="Display name">
+            <h4>Avatar: </h4>
+            <input type="url" id="avatar-box" value="<%= user.avatar_url %>" placeholder="Avatar URL">
+            <h4>Bio: </h4>
+            <input type="text" id="bio-box" value="<%= user.bio %>" placeholder="Bio">
+        </section>
+        <button id="save">Save</button>
+        <div id="status"></div>
+    </main>
+    <footer>
+    </footer>
+</body>
+
+</html>

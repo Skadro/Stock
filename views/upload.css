@@ -1,7 +1,7 @@
-body,
-main {
+body {
     margin: 0;
     padding: 0;
+    font-family: Arial, sans-serif;
     background-color: rgb(117, 52, 223);
 }
 
@@ -36,48 +36,21 @@ main {
     margin-right: 0;
 }
 
-.title {
+h1 {
     position: static;
     text-align: center;
     overflow: auto;
     text-overflow: ellipsis;
     border: 10px;
     font-family: Verdana, Geneva, Tahoma, sans-serif;
-    color: rgb(238, 32, 32);
+    font-size: 40px;
+    color: rgb(0, 0, 0);
 }
 
-#container {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem 1rem;
-    overflow: auto;
-}
-
-.block {
-    margin: auto auto;
-    align-items: center;
-    overflow: auto;
-}
-
-.image {
-    position: absolute;
-    top: 0px;
-    right: 0px;
-    bottom: 0px;
-    left: 0px;
-    height: auto;
-    object-fit: contain;
-    display: block;
-    margin: auto;
-}
-
-.video {
-    position: absolute;
-    top: 0px;
-    right: 0px;
-    bottom: 0px;
-    left: 0px;
-    margin: auto;
+main {
+    max-width: 800px;
+    margin: 20px auto;
+    background-color: #ffffff;
+    padding: 20px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
 }
