@@ -56,6 +56,8 @@ A simple media management API for uploading, processing, and organizing photos a
 
 1. Rename the `.env_template` file to `.env`.
 2. Configure the variables inside the file
+3. Rename the `config.json_template` file to `config.json`
+4. Configure the options inside the file
 
 ## Usage
 
