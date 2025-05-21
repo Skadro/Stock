@@ -61,53 +61,6 @@ export interface ServerConfig {
     signatureExpiry: number;
 }
 
-export interface DatabaseObject {
-    /**
-     * The hostname of the database you are connecting to
-     */
-    host: string;
-
-    /**
-     * The port number to connect to
-     */
-    port: number;
-
-    /**
-     * The MySQL user to authenticate as
-     */
-    user: string;
-
-    /**
-     * The password of that MySQL user
-     */
-    password: string;
-
-    /**
-     * Name of the database to use for this connection
-     */
-    database: string;
-
-    /**
-     * The maximum number of connections to create at once
-     */
-    connectionLimit: number;
-
-    /**
-     * The maximum number of idle connections
-     */
-    maxIdle: number;
-
-    /**
-     * The idle connections timeout, in milliseconds
-     */
-    idleTimeout: number;
-
-    /**
-     * Enable keep-alive on the socket
-     */
-    enableKeepAlive: boolean;
-}
-
 /**
  * The object model for the `config.json` file
  * @interface
@@ -117,11 +70,6 @@ export interface ConfigObject {
      * The server configuration
      */
     server: ServerConfig;
-
-    /**
-     * The database connection settings
-     */
-    database: DatabaseObject;
 
     /**
      * The number of files per page
@@ -259,7 +207,7 @@ export class Config {
     /**
      * Configuration object
      */
-    config: ConfigObject = { server: { domain: 'localhost', port: 80, rootDir: 'stock', socketTimeout: 300000, keepAliveTimeout: 10000, requestTimeout: 30000, headersTimeout: 10000, signatureExpiry: 86400 }, database: { host: 'localhost', port: 3306, user: '', password: '', database: '', connectionLimit: 10, maxIdle: 10, idleTimeout: 60000, enableKeepAlive: true }, filesPerPage: 30, maxFilesPerDay: 5000, adminPassword: 'admin', viewsFiles: [] };
+    config: ConfigObject = { server: { domain: 'localhost', port: 80, rootDir: 'stock', socketTimeout: 300000, keepAliveTimeout: 10000, requestTimeout: 30000, headersTimeout: 10000, signatureExpiry: 86400 }, filesPerPage: 30, maxFilesPerDay: 5000, adminPassword: 'admin', viewsFiles: [] };
 
     /**
      * Configiration file path

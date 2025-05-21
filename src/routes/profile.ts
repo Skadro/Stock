@@ -11,7 +11,6 @@ import { config, mediaRegEx, server } from '../utils/Storage';
 import { EncryptedSignature, StockFile, User } from '../utils/Structures';
 import { generateSignature, getUser, hashPassword, isInDevelopment, isInteger, isInvalid } from '../utils/Functions';
 
-
 /**
  * Profile router
  * 

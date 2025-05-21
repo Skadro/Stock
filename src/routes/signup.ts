@@ -1,11 +1,14 @@
 // External libs
 import express, { Router } from 'express';
 import { RowDataPacket } from 'mysql2';
+import fs from 'fs';
+import path from 'path';
 
 // Internal libs
-import { server } from '../utils/Storage';
+import { config, server } from '../utils/Storage';
 import { getUser, hashPassword, isInDevelopment } from '../utils/Functions';
 import { User } from '../utils/Structures';
+
 
 /**
  * Signup router
@@ -159,6 +162,10 @@ router.route(`/signup`)
                                             req.session.save((err) => {
                                                 if (err) console.log(err);
                                             });
+
+                                            let userStock: string = path.resolve(`./${config.config.server.rootDir}/${user.username}/stock`);
+
+                                            if (!fs.existsSync(userStock)) fs.mkdirSync(userStock, { recursive: true });
 
                                             res.status(200).end();
                                         } else res.status(500).end();

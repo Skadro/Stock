@@ -3,13 +3,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!deleteBtn) return;
 
-    deleteBtn.addEventListener('click', () => {
-        const formData = new FormData().append('media', document.URL);
-
-        fetch('/stock', {
-            method: 'DELETE',
-            body: formData
-        })
-            .then(() => document.URL = '/stock').catch(error => console.error('Error:', error));
-    });
+    deleteBtn.addEventListener('click', () => fetch('/stock', {
+        method: 'DELETE',
+        body: document.URL
+    })
+        .then((res) => {
+            if (res.ok) document.location.href = '/stock';
+        }).catch(error => console.error('Error:', error)));
 });

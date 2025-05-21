@@ -53,9 +53,7 @@ export function commandHandler(): void {
         for (const command of commandFiles) {
             const commandObj: Command | null | undefined = require(path.resolve(`./src/commands/${command}`)).default;
 
-            if (commandObj && typeof commandObj === 'object') {
-                commands.set(commandObj.aliases.concat(commandObj.name), commandObj);
-            }
+            if (commandObj && typeof commandObj === 'object') commands.set(commandObj.aliases.concat(commandObj.name), commandObj);
         }
     } catch (err) {
         throw err;
@@ -69,11 +67,7 @@ export function commandHandler(): void {
  */
 export async function commandPrompt(): Promise<void> {
     while (true) {
-        let answer: string = await new Promise<string>((resolve) => {
-            rl.question('Command: ', (input) => {
-                resolve(input);
-            });
-        });
+        let answer: string = await new Promise<string>((resolve) => rl.question('Command: ', (input) => resolve(input)));
 
         try {
             let args: string[] = answer.slice(0).split(/ +/);
@@ -90,9 +84,7 @@ export async function commandPrompt(): Promise<void> {
                             break;
                         }
                     }
-                } else {
-                    throw 'There are no commands available';
-                }
+                } else throw 'There are no commands available';
 
                 if (commandToExecute) commandToExecute.execute(args);
                 else throw 'Invalid command';
@@ -118,9 +110,8 @@ export function isInteger(text: string): boolean {
     if (isNaN(Number(text)) || !Number.isSafeInteger(Number(text)) || !Number.isInteger(Number(text))) return false;
 
     let isInteger: boolean = true;
-    for (let i = 0; i < text.length; i++) {
-        if (isNaN(Number(text.charAt(i))) || !Number.isSafeInteger(Number(text.charAt(i)))) { isInteger = false; break; }
-    }
+
+    for (let i = 0; i < text.length; i++) if (isNaN(Number(text.charAt(i))) || !Number.isSafeInteger(Number(text.charAt(i)))) { isInteger = false; break; }
 
     if (parseInt(text) <= 0) isInteger = false;
 
@@ -198,7 +189,7 @@ export function decryptSignature(encryptedQuery: string, secret: Buffer, iv: str
  * @param maxDifference The maximum required difference between `Date.now()` and `time`
  * @returns {boolean} Whether the difference between `Date.now()` and `time` is less than or equal to `maxDifference`
  */
-export function checkDifference(time: string | number, maxDifference: number): boolean {
+export function checkTimeDifference(time: string | number, maxDifference: number): boolean {
     try {
         let timestamp = parseInt(time.toString(), 10);
         let difference = Math.floor((Date.now() - timestamp) / 1000);
@@ -242,11 +233,11 @@ export function checkUserAgent(req: Request): boolean {
  * @returns {boolean} Whether the file is an image, a video or a zip archive
  */
 export function checkFileExtention(ext: string, zip: boolean): boolean {
-    return mediaRegEx.image.test(ext) || mediaRegEx.video.test(ext) || (zip && /^\.(zip)$/i.test(ext));
+    return mediaRegEx.image.test(ext) || mediaRegEx.video.test(ext) || (zip && mediaRegEx.archive.test(ext));
 }
 
 export function getUser(user: RowDataPacket, includePassword?: boolean | undefined): User | undefined {
-    if ((user.user_id !== undefined && user.username !== undefined && user.email !== undefined && user.password !== undefined && user.creation_date !== undefined && user.last_active !== undefined && user.admin !== undefined) && (typeof user.user_id === 'number' && typeof user.username === 'string' && typeof user.email === 'string' && typeof user.password === 'string' && typeof user.creation_date === 'object' && typeof user.last_active === 'object' && typeof user.admin === 'number' && (user.admin === 1 || user.admin === 0))) {
+    if ((user.user_id !== undefined && user.username !== undefined && user.email !== undefined && user.password !== undefined && user.creation_date !== undefined && user.last_active !== undefined && user.admin !== undefined) && (typeof user.user_id === 'number' && typeof user.username === 'string' && typeof user.email === 'string' && typeof user.password === 'string' && typeof user.creation_date === 'object' && typeof user.last_active === 'object' && typeof user.admin === 'number' && (user.admin === 1 || user.admin === 0)))
         return {
             user_id: user.user_id,
             username: user.username,
@@ -259,7 +250,6 @@ export function getUser(user: RowDataPacket, includePassword?: boolean | undefin
             last_active: user.last_active,
             admin: user.admin === 1
         }
-    }
 
     return undefined;
 }
@@ -278,33 +268,36 @@ export function hashPassword(rawPassword: string, salt?: string): string {
  */
 export function databaseConnectionSetup(): void {
     try {
-        server.database = mysql.createPool({
-            host: config.config.database.host,
-            port: config.config.database.port,
-            user: config.config.database.user,
-            password: config.config.database.password,
-            database: config.config.database.database,
-            waitForConnections: true,
-            connectionLimit: config.config.database.connectionLimit,
-            maxIdle: config.config.database.maxIdle,
-            idleTimeout: config.config.database.idleTimeout,
-            queueLimit: 0,
-            enableKeepAlive: config.config.database.enableKeepAlive
-        });
 
-        server.database.getConnection((err, connection) => {
-            if (server.database) {
-                if (err) {
-                    console.log('Failed to connect to the database', err);
-                    process.exit(0);
+        if (process.env.DB_HOST && process.env.DB_PORT && process.env.DB_USER && process.env.DB_PASSWORD && process.env.DB_DATABASE && process.env.DB_CONNECTION_LIMIT && process.env.DB_MAX_IDLE && process.env.DB_IDLE_TIMEOUT && process.env.DB_KEEP_ALIVE) {
+            server.database = mysql.createPool({
+                host: process.env.DB_HOST,
+                port: Number.parseInt(process.env.DB_PORT),
+                user: process.env.DB_USER,
+                password: process.env.DB_PASSWORD,
+                database: process.env.DB_DATABASE,
+                waitForConnections: true,
+                connectionLimit: Number.parseInt(process.env.DB_CONNECTION_LIMIT),
+                maxIdle: Number.parseInt(process.env.DB_MAX_IDLE),
+                idleTimeout: Number.parseInt(process.env.DB_IDLE_TIMEOUT),
+                queueLimit: 0,
+                enableKeepAlive: process.env.DB_KEEP_ALIVE.toLowerCase() === 'true' || process.env.DB_KEEP_ALIVE === '1'
+            });
+
+            server.database.getConnection((err, connection) => {
+                if (server.database) {
+                    if (err) {
+                        console.log('Failed to connect to the database', err);
+                        process.exit(0);
+                    }
+
+                    connection.execute('CREATE TABLE IF NOT EXISTS `users` (`user_id` INT NOT NULL AUTO_INCREMENT , `username` VARCHAR(255) NOT NULL , `email` VARCHAR(255) NOT NULL , `password` VARCHAR(255) NOT NULL , `display_name` VARCHAR(255) NULL DEFAULT NULL , `bio` TEXT NULL DEFAULT NULL , `avatar_url` VARCHAR(255) NULL DEFAULT NULL , `creation_date` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP , `last_active` TIMESTAMP DEFAULT CURRENT_TIMESTAMP , `admin` BOOLEAN NOT NULL DEFAULT FALSE , PRIMARY KEY (`user_id`) , UNIQUE `USERNAME` (`username`) , UNIQUE `EMAIL` (`email`))');
+                    connection.execute('CREATE TABLE IF NOT EXISTS `sessions` (`session_id` VARCHAR(255) NOT NULL , `session_data` TEXT NOT NULL , `expire_date` INT(11) UNSIGNED NOT NULL , PRIMARY KEY(`session_id`))');
                 }
+            });
 
-                connection.execute('CREATE TABLE IF NOT EXISTS `users` (`user_id` INT NOT NULL AUTO_INCREMENT , `username` VARCHAR(255) NOT NULL , `email` VARCHAR(255) NOT NULL , `password` VARCHAR(255) NOT NULL , `display_name` VARCHAR(255) NULL DEFAULT NULL , `bio` TEXT NULL DEFAULT NULL , `avatar_url` VARCHAR(255) NULL DEFAULT NULL , `creation_date` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP , `last_active` TIMESTAMP DEFAULT CURRENT_TIMESTAMP , `admin` BOOLEAN NOT NULL DEFAULT FALSE , PRIMARY KEY (`user_id`) , UNIQUE `USERNAME` (`username`) , UNIQUE `EMAIL` (`email`))');
-                connection.execute('CREATE TABLE IF NOT EXISTS `sessions` (`session_id` VARCHAR(255) NOT NULL , `session_data` TEXT NOT NULL , `expire_date` INT(11) UNSIGNED NOT NULL , PRIMARY KEY(`session_id`))');
-            }
-        });
-
-        console.log('Connected to the database');
+            console.log('Connected to the database');
+        } else throw 'Invalid database configuration';
     } catch (err) {
         console.log('Failed to connect to the database', err);
         process.exit(0);
@@ -320,18 +313,17 @@ export function serverSetup(): void {
     if (server.app) {
         try {
             if (!process.env.SESSION_SECRET) { console.log('You need to provide a session secret'); return; }
+
             server.app.disable('x-powered-by');
             server.app.set('view engine', 'ejs');
             server.app.set('views', path.resolve(`./views`));
 
             server.app.use(express.urlencoded({ extended: true }));
 
-            if (isInDevelopment()) {
-                server.app.use((req, _res, next) => {
-                    console.log(`\n${new Date(Date.now()).toString()}:\nIP: ${req.ip}\nURL: ${req.originalUrl}\nMethod: ${req.method}\nRequest headers:\n  ${req.rawHeaders.map((value, index) => (index % 2 === 0) ? `\n  ${value.trim()}` : `: ${value.trim()}`).join('').trim()}\nRequest body: ${req.body}`);
-                    next();
-                });
-            }
+            if (isInDevelopment()) server.app.use((req, _res, next) => {
+                console.log(`\n${new Date(Date.now()).toString()}:\nIP: ${req.ip}\nURL: ${req.originalUrl}\nMethod: ${req.method}\nRequest headers:\n  ${req.rawHeaders.map((value, index) => (index % 2 === 0) ? `\n  ${value.trim()}` : `: ${value.trim()}`).join('').trim()}\nRequest body: ${req.body}`);
+                next();
+            });
 
             if (!server.database) throw new Error('The database connection pool is invalid')
 
@@ -352,6 +344,8 @@ export function serverSetup(): void {
                 }
             }, server.database);
 
+            let isHttps: boolean = getURLProtocol() === 'https';
+
             server.app.use(cors(), helmet({
                 contentSecurityPolicy: {
                     useDefaults: false,
@@ -368,16 +362,16 @@ export function serverSetup(): void {
                         'script-src': ["'self'", "'unsafe-inline'"],
                         'script-src-attr': ["'none'"],
                         'style-src': ["'self'", 'https:', "'unsafe-inline'"],
-                        ...(process.env.TLS_KEY && process.env.TLS_CERT ? { 'upgrade-insecure-requests': [] } : {})
+                        ...(isHttps ? { 'upgrade-insecure-requests': [] } : {})
                     }
                 },
                 crossOriginEmbedderPolicy: { policy: 'credentialless' },
-                crossOriginOpenerPolicy: (process.env.TLS_KEY && process.env.TLS_CERT) ? { policy: 'same-origin' } : false,
+                crossOriginOpenerPolicy: (isHttps) ? { policy: 'same-origin' } : false,
                 crossOriginResourcePolicy: { policy: 'cross-origin' },
                 dnsPrefetchControl: { allow: false },
                 frameguard: { action: 'sameorigin' },
                 hidePoweredBy: true,
-                hsts: process.env.TLS_KEY !== undefined && process.env.TLS_CERT !== undefined,
+                hsts: isHttps,
                 ieNoOpen: true,
                 noSniff: true,
                 originAgentCluster: false,
@@ -404,11 +398,8 @@ export function serverSetup(): void {
                     res.status(404).end();
                 });
 
-            if (process.env.TLS_KEY && process.env.TLS_CERT) {
-                server.server = https.createServer({ key: fs.readFileSync(path.resolve(process.env.TLS_KEY)), cert: fs.readFileSync(path.resolve(process.env.TLS_CERT)) }, server.app);
-            } else {
-                server.server = http.createServer(server.app);
-            }
+            if (process.env.TLS_KEY && process.env.TLS_CERT) server.server = https.createServer({ key: fs.readFileSync(path.resolve(process.env.TLS_KEY)), cert: fs.readFileSync(path.resolve(process.env.TLS_CERT)) }, server.app);
+            else server.server = http.createServer(server.app);
 
             server.server.timeout = config.config.server.socketTimeout;
             server.server.keepAliveTimeout = config.config.server.keepAliveTimeout;
@@ -418,7 +409,8 @@ export function serverSetup(): void {
             generateKey();
 
             server.server.listen(config.config.server.port, () => {
-                console.log(`Listening on port ${config.config.server.port} ${(process.env.TLS_KEY && process.env.TLS_CERT) ? '(HTTPS)' : '(HTTP)'}`);
+                console.log(`Listening on port ${config.config.server.port} ${(isHttps) ? '(HTTPS)' : '(HTTP)'}`);
+
                 if (!cmdPrompt) {
                     cmdPrompt = true;
                     commandPrompt();
@@ -611,6 +603,7 @@ export function sendForbidden(res: Response): boolean {
                 res.status(500).end();
             }
         });
+
         return true;
     } catch (err) {
         console.log(err);
@@ -624,11 +617,7 @@ export function sendForbidden(res: Response): boolean {
  * @returns {'http' | 'https'} The URL protocol
  */
 export function getURLProtocol(): 'http' | 'https' {
-    if (process.env.TLS_CERT && process.env.TLS_KEY) {
-        return 'https';
-    } else {
-        return 'http';
-    }
+    return (process.env.TLS_CERT && process.env.TLS_KEY) ? 'https' : 'http';
 }
 
 /**
@@ -641,19 +630,8 @@ export function getURLProtocol(): 'http' | 'https' {
  * @returns {'' | `:${number}`} The port in URL syntax (`:port`) or `''`, if `80` or '443' and `keepPort` is not provided, `undefined` or `false`
  */
 export function getURLPort(port: number, keepPort?: boolean | undefined): '' | `:${number}` {
-    try {
-        if (isInteger(port.toString())) {
-            if ((port === 80 || port === 443) && !keepPort) {
-                return '';
-            } else {
-                return `:${port}`;
-            }
-        } else {
-            throw new Error('Invalid port number');
-        }
-    } catch (err) {
-        throw err;
-    }
+    if (Number.isInteger(port)) return ((port === 80 || port === 443) && !keepPort) ? '' : `:${port}`;
+    else throw new Error('Invalid port number');
 }
 
 /**
@@ -675,7 +653,5 @@ export function getURL(...parts: (string | null | undefined)[]): string {
  * @returns {boolean} Whether the application is running in `development` mode
  */
 export function isInDevelopment(): boolean {
-    if (process.env.NODE_ENV)
-        return process.env.NODE_ENV === 'development';
-    else return false;
+    return process.env.NODE_ENV === 'development';
 }

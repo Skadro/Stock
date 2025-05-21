@@ -4,15 +4,14 @@ import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import ffmpeg from 'fluent-ffmpeg';
-import crypto from 'crypto';
 import { Unzip } from 'zip-lib';
 import mime from 'mime';
+import { RowDataPacket } from 'mysql2';
 
 // Internal libs
 import { config, mediaRegEx, server } from '../utils/Storage';
 import { EncryptedSignature, StockFile, User } from '../utils/Structures';
-import { RowDataPacket } from 'mysql2';
-import { checkDifference, checkFileExtention, decryptSignature, generateSignature, getURL, isInDevelopment, isInteger, sendForbidden } from '../utils/Functions';
+import { checkTimeDifference, checkFileExtention, decryptSignature, generateSignature, getURL, isInDevelopment, isInteger, sendForbidden, isInvalid } from '../utils/Functions';
 
 const upload: multer.Multer = multer({
     limits: {
@@ -20,7 +19,8 @@ const upload: multer.Multer = multer({
         files: 500
     },
     preservePath: true,
-    fileFilter: (_req, file, callback) => {
+    fileFilter: (req, file, callback) => {
+        if (req.method === 'DELETE') { callback(null, true); return; }
         const ext: string = path.parse(file.originalname).ext;
 
         if (checkFileExtention(ext, true)) callback(null, true);
@@ -214,7 +214,7 @@ router.route('/stock')
         const user: User | undefined = req.session.user;
 
         if (user) {
-            if (req.files && Array.isArray(req.files)) {
+            if (req.files && Array.isArray(req.files) && req.files.length > 0) {
                 const userGallery: string = path.resolve(`./${config.config.server.rootDir}/${user.username}/stock`);
                 if (!fs.existsSync(userGallery)) fs.mkdirSync(userGallery, { recursive: true });
 
@@ -222,28 +222,14 @@ router.route('/stock')
                     const nameExt: path.ParsedPath = path.parse(file.originalname);
                     const name: string = nameExt.name.trim();
                     const ext: string = nameExt.ext.trim().toLowerCase();
-                    const uuid: string = crypto.randomUUID({ disableEntropyCache: true });
-                    const filePath: string = `${userGallery}/${uuid}${ext}`;
+                    const filePath: string = `${userGallery}/${file.originalname}`;
 
                     fs.writeFileSync(filePath, file.buffer);
 
                     if (ext === '.zip') {
                         const targetPath: string = `${userGallery}/${name}`;
 
-                        await unzip.extract(filePath, targetPath).then(() => {
-                            if (fs.existsSync(targetPath)) {
-                                const files: string[] = fs.readdirSync(targetPath);
-
-                                files.forEach((file) => {
-                                    const fullPath: string = `${targetPath}/${file}`;
-                                    const ext: string = path.parse(fullPath).ext.trim().toLowerCase();
-                                    const uuid: string = crypto.randomUUID({ disableEntropyCache: true });
-                                    const newPath: string = `${targetPath}/${uuid}${ext}`;
-
-                                    fs.renameSync(fullPath, newPath);
-                                })
-                            }
-                        }).then(() => fs.rmSync(filePath)).catch((err) => {
+                        await unzip.extract(filePath, targetPath).then(() => fs.rmSync(filePath)).catch((err) => {
                             console.log(err);
                             fs.rmSync(filePath);
                             res.status(500).end();
@@ -255,14 +241,31 @@ router.route('/stock')
             } else res.status(400).end();
         } else res.status(401).end();
     })
-   /* .delete(upload.none(), (req, res) => {
-        let url: any = req.body.media;
+    .delete(express.text(), (req, res) => {
+        const user: User | undefined = req.session.user;
 
-        if (!isInvalid(url)) {
-            /let filePath: string = new URL(url).pathname;
-        }
+        console.log(user);
+
+        if (user) {
+            if (!isInvalid(req.body) && typeof req.body === 'string') {
+                let filePath: string = new URL(req.body).pathname;
+                let pathNameParts: string[] = filePath.split('/');
+                let filename: string | undefined = pathNameParts[pathNameParts.length - 1];
+
+                console.log(filename)
+
+                if (filename) {
+                    let fullPath: string = path.resolve(`./${config.config.server.rootDir}/${user.username}/stock/${filename}`);
+
+                    console.log(fullPath);
+
+                    fs.rmSync(fullPath, { force: true });
+
+                    res.status(200).end();
+                }
+            } else res.status(400).end();
+        } else res.status(403).end();
     });
-    */
 
 router.get('/stock/*', (req, res) => {
     req.on('error', (err) => {
@@ -452,7 +455,7 @@ router.get('/stock/*', (req, res) => {
                                     if (signatureParts.length !== 2) { sendForbidden(res); return; }
                                     if (!signatureParts[0] || !signatureParts[1]) { sendForbidden(res); return; }
 
-                                    if (isInteger(signatureParts[0]) && checkDifference(signatureParts[0], config.config.server.signatureExpiry) && signatureParts[1] === path.parse(fullPath).base) {
+                                    if (isInteger(signatureParts[0]) && checkTimeDifference(signatureParts[0], config.config.server.signatureExpiry) && signatureParts[1] === path.parse(fullPath).base) {
                                         res.set('Content-Type', type!);
                                         res.status(200).sendFile(fullPath, (err) => {
                                             if (err) {
@@ -871,7 +874,7 @@ router.get('/user/:username/stock/*', (req, res) => {
                                     if (signatureParts.length !== 2) { sendForbidden(res); return; }
                                     if (!signatureParts[0] || !signatureParts[1]) { sendForbidden(res); return; }
 
-                                    if (isInteger(signatureParts[0]) && checkDifference(signatureParts[0], config.config.server.signatureExpiry) && signatureParts[1] === path.parse(fullPath).base) {
+                                    if (isInteger(signatureParts[0]) && checkTimeDifference(signatureParts[0], config.config.server.signatureExpiry) && signatureParts[1] === path.parse(fullPath).base) {
                                         res.set('Content-Type', type!);
                                         res.status(200).sendFile(fullPath, (err) => {
                                             if (err) {

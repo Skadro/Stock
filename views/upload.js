@@ -21,14 +21,21 @@ document.addEventListener('DOMContentLoaded', () => {
             method: 'POST',
             body: formData
         })
-            .then(() => {
+            .then((res) => {
                 fileInput.files = null;
+
+                if (!res.ok) {
+                    status.style.color = 'red';
+                    status.textContent = 'Upload failed';
+                    return;
+                }
                 status.style.color = 'green';
                 status.textContent = `${files.length} file(s) have been uploaded`;
             }).catch(error => {
+                fileInput.files = null;
                 console.error('Error:', error);
                 status.style.color = 'red';
-                status.textContent = 'Upload failed. Please try again.';
+                status.textContent = 'Upload failed';
             });
     });
 });

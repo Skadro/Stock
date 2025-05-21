@@ -20,6 +20,7 @@ config.json
 **/**/*.webm
 
 **/**/*.txt
+**/**/*.zip
 
 **/**/*.pem
 **/**/*.crt

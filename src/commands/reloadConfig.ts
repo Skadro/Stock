@@ -13,6 +13,7 @@ export default {
     async execute(): Promise<void> {
         try {
             config.reload();
+            console.log('Config file reloaded');
         } catch (err) {
             throw err;
         }

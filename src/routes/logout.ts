@@ -29,10 +29,10 @@ router.get('/logout', (req, res) => {
                 res.status(500).end();
                 return;
             }
+        });
+    }
 
-            res.status(200).send('Logged out').end();
-        })
-    } else res.redirect('/login');
+    res.redirect('/login');
 });
 
 export default router;

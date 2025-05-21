@@ -4,7 +4,6 @@ import { RowDataPacket } from 'mysql2';
 
 // Internal libs
 import { server } from '../utils/Storage';
-
 import { getUser, hashPassword, isInDevelopment } from '../utils/Functions';
 import { User } from '../utils/Structures';
 

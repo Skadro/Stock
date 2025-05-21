@@ -36,6 +36,49 @@ main {
     margin-right: 0;
 }
 
+.sticky-header nav ul li button {
+    background-color: #fff;
+    color: #333;
+    border: 2px solid #b39c75;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.sticky-header nav ul li button:hover {
+    background-color: #b39c75;
+    color: #fff;
+}
+
+.sticky-header nav ul li button:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(179, 156, 117, 0.5);
+}
+
+#container {
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 16px;
+    background-color: rgba(255, 255, 255, 0.9);
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.block {
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+.block img,
+.block video {
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 .title {
     position: static;
     text-align: center;
@@ -43,41 +86,22 @@ main {
     text-overflow: ellipsis;
     border: 10px;
     font-family: Verdana, Geneva, Tahoma, sans-serif;
-    color: rgb(238, 32, 32);
+    color: #fff
 }
 
-#container {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem 1rem;
-    overflow: auto;
-}
-
-.block {
-    margin: auto auto;
-    align-items: center;
-    overflow: auto;
-}
-
-.image {
-    position: absolute;
-    top: 0px;
-    right: 0px;
-    bottom: 0px;
-    left: 0px;
-    height: auto;
-    object-fit: contain;
+#delete-btn {
     display: block;
-    margin: auto;
+    margin: 0 auto;
+    background-color: #e74c3c;
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
 }
 
-.video {
-    position: absolute;
-    top: 0px;
-    right: 0px;
-    bottom: 0px;
-    left: 0px;
-    margin: auto;
+#delete-btn:hover {
+    background-color: #c0392b;
 }

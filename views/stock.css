@@ -36,6 +36,27 @@ main {
     margin-right: 0;
 }
 
+.sticky-header nav ul li button {
+    background-color: #fff;
+    color: #333;
+    border: 2px solid #b39c75;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.sticky-header nav ul li button:hover {
+    background-color: #b39c75;
+    color: #fff;
+}
+
+.sticky-header nav ul li button:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(179, 156, 117, 0.5);
+}
+
 .title {
     position: static;
     text-align: center;

@@ -4,11 +4,11 @@ import fs from 'fs';
 import path from 'path';
 import ffmpeg from 'fluent-ffmpeg';
 import mime from 'mime';
+import { RowDataPacket } from 'mysql2';
 
 // Internal libs
 import { config, mediaRegEx, server } from '../utils/Storage';
 import { EncryptedSignature, StockFile, User } from '../utils/Structures';
-import { RowDataPacket } from 'mysql2';
 import { generateSignature, getUser, isInDevelopment, isInteger } from '../utils/Functions';
 
 /**
