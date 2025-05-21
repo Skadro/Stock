@@ -248,14 +248,13 @@ router.route('/stock')
 
         if (user) {
             if (!isInvalid(req.body) && typeof req.body === 'string') {
-                let filePath: string = new URL(req.body).pathname;
-                let pathNameParts: string[] = filePath.split('/');
-                let filename: string | undefined = pathNameParts[pathNameParts.length - 1];
+                let urlPath: string = new URL(req.body).pathname;
+                let filePath: string = urlPath.split('/').slice(2).join('/');
 
-                console.log(filename)
+                console.log(filePath)
 
-                if (filename) {
-                    let fullPath: string = path.resolve(`./${config.config.server.rootDir}/${user.username}/stock/${filename}`);
+                if (filePath.length > 0) {
+                    let fullPath: string = path.resolve(`./${config.config.server.rootDir}/${user.username}/stock/${filePath}`);
 
                     console.log(fullPath);
 
