@@ -2,9 +2,7 @@
 
 A simple media management API for uploading, processing, and organizing photos and videos in user-specific galleries.
 
-## Description
-
-`Stock` is a RESTful API built with Express.js written in TypeScript. It provides endpoints for user authentication, media upload (photos & videos), automatic processing (thumbnails, transcoding), and gallery management.
+---
 
 ## Features
 
